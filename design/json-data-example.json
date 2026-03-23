@@ -1,0 +1,68 @@
+{
+  "grid": {
+    "cols": 6,
+    "rows": 2
+  },
+  "zones": [
+    {
+      "id": "modulebay1",
+      "label": "ModuleBay1",
+      "grid_position": {
+        "row": 1,
+        "col": 1,
+        "row_span": 1,
+        "col_span": 1
+      }
+    },
+    {
+      "id": "modulebay2",
+      "label": "ModuleBay2",
+      "grid_position": {
+        "row": 2,
+        "col": 1,
+        "row_span": 1,
+        "col_span": 1
+      },
+    },
+    {
+      "id": "onboard-nics",
+      "label": "Onboard NICs",
+      "grid_position": {
+        "row": 2,
+        "col": 3,
+        "row_span": 1,
+        "col_span": 1
+      },
+      "ports": [
+        {
+          "id": "1",
+          "label": "1"
+        },
+        {
+          "id": "2",
+          "label": "2"
+        }
+      ]
+    },
+    {
+      "id": "psu1",
+      "label": "PSU1",
+      "grid_position": {
+        "row": 1,
+        "col": 5,
+        "row_span": 2,
+        "col_span": 1
+      }
+    },
+    {
+      "id": "psu2",
+      "label": "PSU2",
+      "grid_position": {
+        "row": 1,
+        "col": 6,
+        "row_span": 2,
+        "col_span": 1
+      }
+    }
+  ]
+}

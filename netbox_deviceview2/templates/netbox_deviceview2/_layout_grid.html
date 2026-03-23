@@ -1,0 +1,146 @@
+{% comment %}
+Shared panel layout include.
+Context vars:
+  layout_json, sub_layouts_json, edit_mode, can_edit,
+  save_url, object_type, object_pk
+{% endcomment %}
+
+{# ---- Toolbar ------------------------------------------------------------ #}
+<div class="dv2-toolbar d-flex align-items-center gap-2 mb-2 flex-wrap">
+  {% if edit_mode %}
+    <span class="badge bg-warning text-dark">Editing</span>
+    <label class="mb-0 fw-semibold small">Rows:</label>
+    <input id="dv2-rows-input" type="number" class="form-control form-control-sm" style="width:70px" min="1" max="20" value="2">
+    <label class="mb-0 fw-semibold small">Cols:</label>
+    <input id="dv2-cols-input" type="number" class="form-control form-control-sm" style="width:70px" min="1" max="48" value="6">
+    <button id="dv2-undo-btn" class="btn btn-sm btn-outline-secondary" title="Undo (Ctrl+Z)" disabled>&#8630; Undo</button>
+    <button id="dv2-clear-btn" class="btn btn-sm btn-outline-danger">Clear All</button>
+    <button id="dv2-save-btn" class="btn btn-sm btn-primary ms-auto">
+      <i class="mdi mdi-content-save"></i> Save Layout
+    </button>
+    <a href="?" class="btn btn-sm btn-outline-secondary">Cancel</a>
+  {% else %}
+    {% if can_edit %}
+      <a href="?edit=1" class="btn btn-sm btn-outline-primary ms-auto">
+        <i class="mdi mdi-pencil"></i> Edit Layout
+      </a>
+    {% endif %}
+  {% endif %}
+</div>
+
+{# ---- Main editor area (sidebar + panel) --------------------------------- #}
+<div class="dv2-editor-layout{% if edit_mode %} dv2-edit-mode{% endif %}">
+
+  {# Left sidebar — only in edit mode #}
+  {% if edit_mode %}
+  <aside class="dv2-sidebar" id="dv2-sidebar">
+    <div class="dv2-sidebar-header">Available Items</div>
+
+    <select id="dv2-sidebar-type" class="dv2-select dv2-sidebar-select">
+      <option value="module-bay">Module Bays</option>
+      <option value="interface">Interfaces</option>
+      <option value="front-port">Front Ports</option>
+      <option value="rear-port">Back Ports</option>
+    </select>
+
+    <input id="dv2-sidebar-filter" type="search" class="dv2-sidebar-filter"
+           placeholder="Filter…" autocomplete="off">
+
+    <div id="dv2-sidebar-list" class="dv2-sidebar-list">
+      <div class="dv2-sidebar-loading">Loading…</div>
+    </div>
+  </aside>
+  {% endif %}
+
+  {# Resize bar between sidebar and panel #}
+  {% if edit_mode %}
+  <div class="dv2-resize-bar" id="dv2-resize-bar"><span></span></div>
+  {% endif %}
+
+  {# Panel (dark chassis) #}
+  <div class="dv2-panel" id="dv2-panel">
+    {% if edit_mode %}
+      <input class="dv2-panel-label-input" type="text" placeholder="PANEL LABEL (e.g. REAR PANEL)">
+    {% else %}
+      <div class="dv2-panel-label"></div>
+    {% endif %}
+
+    <div class="dv2-grid"
+         id="dv2-grid"
+         data-layout="{{ layout_json }}"
+         data-sub-layouts="{{ sub_layouts_json }}"
+         data-edit="{{ edit_mode|yesno:'true,false' }}"
+         data-object-type="{{ object_type }}"
+         data-object-pk="{{ object_pk }}">
+      <noscript>
+        <p style="color:#8ab4d4;padding:1rem">JavaScript is required to display the layout.</p>
+      </noscript>
+    </div>
+  </div>
+
+</div>{# .dv2-editor-layout #}
+
+{# ---- Hidden save form --------------------------------------------------- #}
+{% if edit_mode %}
+<form id="dv2-save-form" method="post" action="{{ save_url }}">
+  {% csrf_token %}
+  <input type="hidden" id="dv2-layout-data" name="layout_data" value="">
+</form>
+
+{# ---- Zone EDIT modal (for editing existing zones, not creating) --------- #}
+<div id="dv2-zone-modal">
+  <div class="dv2-modal-dialog">
+    <div class="dv2-modal-header">
+      <span>Edit Zone</span>
+      <button class="dv2-modal-close" id="dv2-modal-close-btn" type="button">&#x2715;</button>
+    </div>
+    <div class="dv2-modal-body">
+
+      <div class="mb-3">
+        <label class="form-label" for="dv2-modal-label">Label</label>
+        <input type="text" id="dv2-modal-label" class="form-control">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="dv2-modal-type">Type</label>
+        <select id="dv2-modal-type" class="dv2-select">
+          <option value="module_bay">Module Bay</option>
+          <option value="port_group">Port Group</option>
+          <option value="power">Power</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div class="col-6 mb-3">
+          <label class="form-label" for="dv2-modal-colspan">Column Span</label>
+          <input type="number" id="dv2-modal-colspan" class="form-control" min="1" value="1">
+        </div>
+        <div class="col-6 mb-3">
+          <label class="form-label" for="dv2-modal-rowspan">Row Span</label>
+          <input type="number" id="dv2-modal-rowspan" class="form-control" min="1" value="1">
+        </div>
+      </div>
+
+      {# Port picker — shown when type = port_group #}
+      <div id="dv2-modal-ports-section" style="display:none">
+        <label class="form-label">Ports in this zone</label>
+        <div id="dv2-modal-ports-list" class="mb-2"></div>
+        <div class="d-flex gap-2 align-items-center">
+          <select id="dv2-modal-port-pick" class="dv2-select" style="flex:1">
+            <option value="">— add a port —</option>
+          </select>
+          <button type="button" id="dv2-modal-add-port" class="btn btn-sm btn-outline-secondary">Add</button>
+        </div>
+        <div class="dv2-form-hint">Drag additional items from the sidebar, or add here.</div>
+      </div>
+
+    </div>
+    <div class="dv2-modal-footer">
+      <button type="button" class="btn btn-sm btn-outline-danger me-auto" id="dv2-modal-delete-btn">Delete Zone</button>
+      <button type="button" class="btn btn-secondary btn-sm" id="dv2-modal-cancel-btn">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" id="dv2-modal-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+{% endif %}

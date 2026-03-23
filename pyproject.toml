@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "netbox-deviceview2"
+version = "0.1.0"
+description = "Physical layout view and WYSIWYG editor for NetBox device types and module types"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "netbox>=4.1.0",
+]
+
+[project.entry-points."netbox_plugins"]
+netbox_deviceview2 = "netbox_deviceview2:config"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["netbox_deviceview2*"]
