@@ -21,9 +21,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const panelEl = document.getElementById("dv2-panel");
   if (!gridEl || !panelEl) return;
 
-  const layout = safeParseJSON(gridEl.dataset.layout, {});
-  const subLayouts = safeParseJSON(gridEl.dataset.subLayouts, {});
-  const editMode = gridEl.dataset.edit === "true";
+  const layout      = safeParseJSON(gridEl.dataset.layout, {});
+  const subLayouts  = safeParseJSON(gridEl.dataset.subLayouts, {});
+  const connections = safeParseJSON(gridEl.dataset.connections, {});
+  const editMode    = gridEl.dataset.edit === "true";
 
   if (editMode) {
     const editor = new LayoutEditor(panelEl, gridEl, layout, subLayouts);
@@ -31,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     render(panelEl, gridEl, layout, {
       editable: false,
-      connections: {},
+      connections,
       subLayouts,
     });
   }
