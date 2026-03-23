@@ -9,7 +9,7 @@ from django.views import View
 from netbox.views.generic import ObjectView
 from utilities.views import ViewTab, register_model_view
 
-from dcim.models import Device, DeviceType, ModuleType
+from dcim.models import Device, DeviceType, Module, ModuleType
 
 from .models import DeviceLayout, DeviceTypeLayout, ModuleTypeLayout
 
@@ -103,13 +103,43 @@ class DeviceLayoutView(ObjectView):
 
     def get_extra_context(self, request, instance):
         layout, _ = DeviceLayout.objects.get_or_create(device=instance)
+
+        # Build sub_layouts: for each module bay zone that has a module installed,
+        # fetch the module type's layout and pass it keyed by zone ID so the
+        # renderer can nest it inside the bay.
+        sub_layouts = {}
+        zones = layout.layout.get("zones", []) if layout.layout else []
+
+        # Map module bay NetBox ID → zone ID
+        bay_zone_map = {
+            str(zone["netbox_id"]): zone["id"]
+            for zone in zones
+            if zone.get("type") == "module_bay" and zone.get("netbox_id")
+        }
+
+        if bay_zone_map:
+            installed = Module.objects.filter(
+                module_bay__device=instance,
+            ).select_related("module_type", "module_bay")
+
+            for module in installed:
+                zone_id = bay_zone_map.get(str(module.module_bay_id))
+                if not zone_id:
+                    continue
+                try:
+                    mt_layout = ModuleTypeLayout.objects.get(module_type=module.module_type)
+                    if mt_layout.layout:
+                        sub_layouts[zone_id] = mt_layout.layout
+                except ModuleTypeLayout.DoesNotExist:
+                    pass
+
         save_url = reverse(
             "plugins:netbox_deviceview2:device_layout_save",
             kwargs={"pk": instance.pk},
         )
         return {
             "layout_json": json.dumps(layout.layout),
-            "sub_layouts_json": json.dumps({}),
+            "sub_layouts_json": json.dumps(sub_layouts),
             "edit_mode": request.GET.get("edit") == "1",
             "can_edit": request.user.has_perm("dcim.change_device"),
             "save_url": save_url,
