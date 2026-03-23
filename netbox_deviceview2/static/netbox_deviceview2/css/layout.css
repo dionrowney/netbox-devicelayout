@@ -433,6 +433,13 @@
   border: 1px solid #5a7aaa;
   color: #ddeeff;
 }
+/* View-mode connection status */
+.dv2-port.dv2-connected {
+  background: #1a6a30;
+  border-color: #28a745;
+  color: #a8f0b8;
+}
+/* dv2-unconnected uses the base .dv2-port style (#4a6a9a) */
 
 /* ---- Edit mode zone controls ------------------------------------------- */
 .dv2-edit-mode .dv2-zone { cursor: grab; }
