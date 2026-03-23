@@ -9,7 +9,10 @@ from django.views import View
 from netbox.views.generic import ObjectView
 from utilities.views import ViewTab, register_model_view
 
-from dcim.models import Device, DeviceType, Module, ModuleType
+from dcim.models import (
+    Device, DeviceType, FrontPortTemplate, InterfaceTemplate,
+    Module, ModuleType, RearPortTemplate,
+)
 
 from .models import DeviceLayout, DeviceTypeLayout, ModuleTypeLayout
 
@@ -136,8 +139,8 @@ class DeviceLayoutView(ObjectView):
             except ModuleTypeLayout.DoesNotExist:
                 pass
 
-        # --- Connections: live cable status for every port in every zone ------
-        # Build a name → connected lookup across all port types on this device.
+        # --- Connections: live cable status ------------------------------------
+        # Build device-wide name → connected lookup for all port types.
         port_connected = {}
         for iface in instance.interfaces.all():
             port_connected[iface.name] = iface.cable_id is not None
@@ -146,13 +149,55 @@ class DeviceLayoutView(ObjectView):
         for rp in instance.rearports.all():
             port_connected[rp.name] = rp.cable_id is not None
 
-        # Key format expected by renderer: "zone_id:port_id"
         connections = {}
+
+        # Device-level zone ports: matched by stored port name.
         for zone in zones:
             for port in zone.get("ports", []):
                 port_name = port.get("name")
                 if port_name and port_name in port_connected:
                     connections[f"{zone['id']}:{port['id']}"] = port_connected[port_name]
+
+        # Sub-layout zone ports: stored with template ID + label only (no name).
+        # Resolve by fetching the template name and substituting {module} with
+        # the bay's position (e.g. "{module}/1" + position "PCIe-1" → "PCIe-1/1").
+        all_template_ids = set()
+        for sub_layout in sub_layouts.values():
+            for sub_zone in sub_layout.get("zones", []):
+                for port in sub_zone.get("ports", []):
+                    try:
+                        all_template_ids.add(int(port["id"]))
+                    except (KeyError, ValueError, TypeError):
+                        pass
+
+        if all_template_ids:
+            template_name_map = {}
+            for t in InterfaceTemplate.objects.filter(pk__in=all_template_ids):
+                template_name_map[str(t.pk)] = t.name
+            for t in FrontPortTemplate.objects.filter(pk__in=all_template_ids):
+                template_name_map[str(t.pk)] = t.name
+            for t in RearPortTemplate.objects.filter(pk__in=all_template_ids):
+                template_name_map[str(t.pk)] = t.name
+
+            for zone in zones:
+                if zone.get("type") != "module_bay":
+                    continue
+                bay_name = zone.get("netbox_name") or zone.get("label")
+                module = installed_by_bay_name.get(bay_name)
+                if not module:
+                    continue
+                bay_position = module.module_bay.position or module.module_bay.name
+                sub_layout = sub_layouts.get(zone["id"])
+                if not sub_layout:
+                    continue
+                for sub_zone in sub_layout.get("zones", []):
+                    for port in sub_zone.get("ports", []):
+                        template_name = template_name_map.get(str(port.get("id", "")))
+                        if not template_name:
+                            continue
+                        actual_name = template_name.replace("{module}", bay_position)
+                        if actual_name in port_connected:
+                            connections[f"{sub_zone['id']}:{port['id']}"] = port_connected[actual_name]
 
         save_url = reverse(
             "plugins:netbox_deviceview2:device_layout_save",
