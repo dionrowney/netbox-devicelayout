@@ -37,6 +37,25 @@ class DeviceTypeLayout(models.Model):
         return f"Layout for {self.device_type}"
 
 
+class DeviceLayout(models.Model):
+    """Stores the physical grid layout for a device (copied from its device type on creation)."""
+
+    device = models.OneToOneField(
+        to="dcim.Device",
+        on_delete=models.CASCADE,
+        related_name="deviceview2_layout",
+    )
+    layout = models.JSONField(default=dict, blank=True)
+    modified = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Device Layout"
+        verbose_name_plural = "Device Layouts"
+
+    def __str__(self):
+        return f"Layout for {self.device}"
+
+
 class ModuleTypeLayout(models.Model):
     """Stores the physical grid layout for a module type."""
 

@@ -15,12 +15,20 @@ import { render, isOccupied } from "./renderer.js";
 let _uid = Date.now();
 function uid() { return "zone-" + (++_uid).toString(36); }
 
-// Maps sidebar dropdown value → { apiSlug, zoneType, label }
+// Maps sidebar dropdown value → { apiSlug, zoneType, dotClass }
+// Device types / module types use template endpoints; devices use actual object endpoints.
 const SIDEBAR_TYPES = {
-  "module-bay":  { apiSlug: "module-bay",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay" },
-  "interface":   { apiSlug: "interface",   zoneType: "port_group",  dotClass: "dv2-dot-interface"  },
-  "front-port":  { apiSlug: "front-port",  zoneType: "port_group",  dotClass: "dv2-dot-front-port" },
-  "rear-port":   { apiSlug: "rear-port",   zoneType: "port_group",  dotClass: "dv2-dot-rear-port"  },
+  "module-bay":  { apiSlug: "module-bay-templates",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay" },
+  "interface":   { apiSlug: "interface-templates",   zoneType: "port_group",  dotClass: "dv2-dot-interface"  },
+  "front-port":  { apiSlug: "front-port-templates",  zoneType: "port_group",  dotClass: "dv2-dot-front-port" },
+  "rear-port":   { apiSlug: "rear-port-templates",   zoneType: "port_group",  dotClass: "dv2-dot-rear-port"  },
+};
+
+const DEVICE_SIDEBAR_TYPES = {
+  "module-bay":  { apiSlug: "module-bays",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay" },
+  "interface":   { apiSlug: "interfaces",   zoneType: "port_group",  dotClass: "dv2-dot-interface"  },
+  "front-port":  { apiSlug: "front-ports",  zoneType: "port_group",  dotClass: "dv2-dot-front-port" },
+  "rear-port":   { apiSlug: "rear-ports",   zoneType: "port_group",  dotClass: "dv2-dot-rear-port"  },
 };
 
 export class LayoutEditor {
@@ -125,7 +133,8 @@ export class LayoutEditor {
     if (!typeEl || !listEl) return;
 
     const sidebarType = typeEl.value;
-    const config = SIDEBAR_TYPES[sidebarType];
+    const types = this.objectType === "device" ? DEVICE_SIDEBAR_TYPES : SIDEBAR_TYPES;
+    const config = types[sidebarType];
     if (!config) return;
 
     listEl.innerHTML = '<div class="dv2-sidebar-loading">Loading…</div>';
@@ -213,12 +222,14 @@ export class LayoutEditor {
   // -------------------------------------------------------------------------
 
   _apiParam() {
-    return this.objectType === "device_type" ? "device_type_id" : "module_type_id";
+    if (this.objectType === "device")      return "device_id";
+    if (this.objectType === "module_type") return "module_type_id";
+    return "device_type_id";
   }
 
   async _fetchItems(apiSlug) {
     if (this._apiCache[apiSlug]) return this._apiCache[apiSlug];
-    const url = `/api/dcim/${apiSlug}-templates/?${this._apiParam()}=${this.objectPk}&limit=1000`;
+    const url = `/api/dcim/${apiSlug}/?${this._apiParam()}=${this.objectPk}&limit=1000`;
     try {
       const resp = await fetch(url, { headers: { Accept: "application/json" } });
       if (!resp.ok) throw new Error(resp.statusText);
@@ -465,7 +476,8 @@ export class LayoutEditor {
     if (!pick) return;
 
     // Try to detect port type from existing zone ports' netbox data — default interface
-    const items = await this._fetchItems("interface");
+    const ifaceSlug = this.objectType === "device" ? "interfaces" : "interface-templates";
+    const items = await this._fetchItems(ifaceSlug);
     const placedIds = new Set((zone.ports || []).map((p) => String(p.id)));
 
     pick.innerHTML = "<option value=''>— add a port —</option>";
