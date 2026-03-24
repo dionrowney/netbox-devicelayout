@@ -59,19 +59,53 @@ rear_port_layout_tab = ViewTab(
 
 
 # ---------------------------------------------------------------------------
+# Layout JSON format helpers
+# ---------------------------------------------------------------------------
+
+def _normalize_layouts(data):
+    """
+    Ensure layout data is in multi-layout format: {"layouts": [...]}.
+    Old single-layout format ({"zones": [...], "grid": {...}}) is auto-wrapped.
+    """
+    if not data:
+        return {"layouts": []}
+    if "layouts" in data:
+        return data
+    return {"layouts": [data]}
+
+
+def _first_sub_layout(data):
+    """
+    Given a module type layout (may be old or new format), return a single
+    layout object for use as a sub-layout inside a device panel.
+    """
+    if not data:
+        return None
+    if "layouts" in data:
+        return data["layouts"][0] if data["layouts"] else None
+    return data
+
+
+# ---------------------------------------------------------------------------
 # Shared helper: build device layout context data
 # ---------------------------------------------------------------------------
 
 def _build_device_layout_data(device):
     """
-    Returns (layout_obj, sub_layouts, connections) for a device.
+    Returns (layouts_data, sub_layouts, connections) for a device.
 
-    connections is keyed by "{zone_id}:{port_id}" for device-level ports and
-    "{parent_zone_id}/{sub_zone_id}:{port_id}" for sub-layout ports.
-    Every port that appears in a zone is included (connected: False when no cable).
+    layouts_data is always in multi-layout format {"layouts": [...]}.
+    connections is populated for every port that appears in any layout zone.
     """
     layout_obj, _ = DeviceLayout.objects.get_or_create(device=device)
-    zones = layout_obj.layout.get("zones", []) if layout_obj.layout else []
+    layouts_data = _normalize_layouts(layout_obj.layout)
+
+    # Collect all zones across all layouts for sub-layout and connection building
+    all_zones = [
+        zone
+        for layout in layouts_data["layouts"]
+        for zone in layout.get("zones", [])
+    ]
 
     # Sub-layouts: installed modules matched by bay name
     sub_layouts = {}
@@ -82,7 +116,7 @@ def _build_device_layout_data(device):
         ).select_related("module_type", "module_bay")
     }
 
-    for zone in zones:
+    for zone in all_zones:
         if zone.get("type") != "module_bay":
             continue
         bay_name = zone.get("netbox_name") or zone.get("label")
@@ -93,8 +127,9 @@ def _build_device_layout_data(device):
             continue
         try:
             mt_layout = ModuleTypeLayout.objects.get(module_type=module.module_type)
-            if mt_layout.layout:
-                sub_layouts[zone["id"]] = mt_layout.layout
+            sub_layout = _first_sub_layout(mt_layout.layout)
+            if sub_layout:
+                sub_layouts[zone["id"]] = sub_layout
         except ModuleTypeLayout.DoesNotExist:
             pass
 
@@ -128,7 +163,7 @@ def _build_device_layout_data(device):
     connections = {}
 
     # Device-level zone ports
-    for zone in zones:
+    for zone in all_zones:
         for port in zone.get("ports", []):
             port_name = port.get("name")
             if port_name:
@@ -159,7 +194,7 @@ def _build_device_layout_data(device):
         for t in RearPortTemplate.objects.filter(pk__in=all_template_ids):
             template_name_map[str(t.pk)] = t.name
 
-        for zone in zones:
+        for zone in all_zones:
             if zone.get("type") != "module_bay":
                 continue
             bay_name = zone.get("netbox_name") or zone.get("label")
@@ -186,7 +221,7 @@ def _build_device_layout_data(device):
                         "peers": info["peers"],
                     }
 
-    return layout_obj, sub_layouts, connections
+    return layouts_data, sub_layouts, connections
 
 
 # ---------------------------------------------------------------------------
@@ -201,12 +236,13 @@ class DeviceTypeLayoutView(ObjectView):
 
     def get_extra_context(self, request, instance):
         layout, _ = DeviceTypeLayout.objects.get_or_create(device_type=instance)
+        layouts_data = _normalize_layouts(layout.layout)
         save_url = reverse(
             "plugins:netbox_deviceview2:devicetype_layout_save",
             kwargs={"pk": instance.pk},
         )
         return {
-            "layout_json": json.dumps(layout.layout),
+            "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps({}),
             "connections_json": json.dumps({}),
             "highlight_port": "",
@@ -230,12 +266,13 @@ class ModuleTypeLayoutView(ObjectView):
 
     def get_extra_context(self, request, instance):
         layout, _ = ModuleTypeLayout.objects.get_or_create(module_type=instance)
+        layouts_data = _normalize_layouts(layout.layout)
         save_url = reverse(
             "plugins:netbox_deviceview2:moduletype_layout_save",
             kwargs={"pk": instance.pk},
         )
         return {
-            "layout_json": json.dumps(layout.layout),
+            "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps({}),
             "connections_json": json.dumps({}),
             "highlight_port": "",
@@ -258,13 +295,13 @@ class DeviceLayoutView(ObjectView):
     template_name = "netbox_deviceview2/device_layout.html"
 
     def get_extra_context(self, request, instance):
-        layout_obj, sub_layouts, connections = _build_device_layout_data(instance)
+        layouts_data, sub_layouts, connections = _build_device_layout_data(instance)
         save_url = reverse(
             "plugins:netbox_deviceview2:device_layout_save",
             kwargs={"pk": instance.pk},
         )
         return {
-            "layout_json": json.dumps(layout_obj.layout),
+            "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps(sub_layouts),
             "connections_json": json.dumps(connections),
             "highlight_port": "",
@@ -284,14 +321,11 @@ class DeviceLayoutView(ObjectView):
 class _PortLayoutViewBase(ObjectView):
     template_name = "netbox_deviceview2/port_layout.html"
 
-    def _get_device(self, instance):
-        return instance.device
-
     def get_extra_context(self, request, instance):
-        device = self._get_device(instance)
+        device = instance.device
         if not device:
             return {
-                "layout_json": json.dumps({}),
+                "layout_json": json.dumps({"layouts": []}),
                 "sub_layouts_json": json.dumps({}),
                 "connections_json": json.dumps({}),
                 "highlight_port": "",
@@ -301,9 +335,9 @@ class _PortLayoutViewBase(ObjectView):
                 "object_type": "device",
                 "object_pk": 0,
             }
-        layout_obj, sub_layouts, connections = _build_device_layout_data(device)
+        layouts_data, sub_layouts, connections = _build_device_layout_data(device)
         return {
-            "layout_json": json.dumps(layout_obj.layout),
+            "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps(sub_layouts),
             "connections_json": json.dumps(connections),
             "highlight_port": instance.name,

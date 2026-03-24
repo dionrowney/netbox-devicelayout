@@ -1,13 +1,14 @@
 /**
  * editor.js — Sidebar drag-and-drop layout editor.
  *
- * Sidebar workflow:
- *   1. Choose item type from dropdown (Module Bays / Interfaces / Front Ports / Back Ports)
- *   2. Items fetched from the NetBox API, shown as draggable chips
- *   3. Drag a chip → drop onto an empty grid cell → zone created
+ * Supports multiple stacked LayoutEditor instances on one page.
+ * Module-level _drag state is shared across all instances so that
+ * a sidebar item dragged from the shared sidebar can be dropped onto
+ * any panel's grid.
  *
- * Existing zone editing:
- *   Double-click or ✎ button on a zone → edit modal (label, type, spans, ports)
+ * The first editor created (ownsSidebar=true) owns the shared sidebar,
+ * modal, and resize bar.  Subsequent editors just manage their own
+ * panel/grid and per-panel controls (rows, cols, undo, clear).
  */
 
 import { render, isOccupied } from "./renderer.js";
@@ -15,8 +16,14 @@ import { render, isOccupied } from "./renderer.js";
 let _uid = Date.now();
 function uid() { return "zone-" + (++_uid).toString(36); }
 
-// Maps sidebar dropdown value → { apiSlug, zoneType, dotClass }
-// Device types / module types use template endpoints; devices use actual object endpoints.
+// Shared drag state — set by sidebar items or zone drag-starts,
+// consumed by any editor's drop handler.
+let _drag = null;
+
+// Shared modal editor — whichever editor most recently opened the modal.
+let _activeModalEditor = null;
+
+// Maps sidebar dropdown value → API config
 const SIDEBAR_TYPES = {
   "module-bay":  { apiSlug: "module-bay-templates",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay" },
   "interface":   { apiSlug: "interface-templates",   zoneType: "port_group",  dotClass: "dv2-dot-interface"  },
@@ -32,12 +39,22 @@ const DEVICE_SIDEBAR_TYPES = {
 };
 
 export class LayoutEditor {
-  constructor(panelEl, gridEl, initialLayout, subLayouts) {
-    this.panelEl    = panelEl;
-    this.gridEl     = gridEl;
-    this.subLayouts = subLayouts;
-    this.objectType = gridEl.dataset.objectType;
-    this.objectPk   = gridEl.dataset.objectPk;
+  /**
+   * @param {HTMLElement} wrapperEl   - .dv2-layout-wrapper (scope for per-panel controls)
+   * @param {HTMLElement} panelEl     - .dv2-panel
+   * @param {HTMLElement} gridEl      - .dv2-grid
+   * @param {object}      initialLayout
+   * @param {object}      subLayouts
+   * @param {boolean}     ownsSidebar - true for the first editor; manages shared sidebar/modal
+   */
+  constructor(wrapperEl, panelEl, gridEl, initialLayout, subLayouts, ownsSidebar = false) {
+    this.wrapperEl    = wrapperEl;
+    this.panelEl      = panelEl;
+    this.gridEl       = gridEl;
+    this.subLayouts   = subLayouts;
+    this._ownsSidebar = ownsSidebar;
+    this.objectType   = gridEl.dataset.objectType;
+    this.objectPk     = gridEl.dataset.objectPk;
 
     this.layout = this._clone(
       Object.keys(initialLayout).length
@@ -46,11 +63,8 @@ export class LayoutEditor {
     );
 
     this.history   = [];
-    this._drag     = null;   // active drag info
     this._resize   = null;
     this._apiCache = {};
-
-    // Modal state (edit only)
     this._modalZone = null;
   }
 
@@ -59,11 +73,17 @@ export class LayoutEditor {
     this._bindDimInputs();
     this._bindPanelLabelInput();
     this._bindUndoClear();
-    this._bindSave();
-    this._bindSidebar();
-    this._bindModalEvents();
-    this._bindResizeBar();
-    document.addEventListener("keydown", (e) => this._onKeyDown(e));
+    if (this._ownsSidebar) {
+      this._bindSidebar();
+      this._bindModalEvents();
+      this._bindResizeBar();
+    }
+    // Note: global Ctrl+Z is handled in main.js; per-editor _undo() is public.
+  }
+
+  /** Return a deep copy of the current layout for saving. */
+  getLayout() {
+    return this._clone(this.layout);
   }
 
   // -------------------------------------------------------------------------
@@ -79,12 +99,11 @@ export class LayoutEditor {
     this._bindZoneEvents();
     this._updateUndoBtn();
     this._syncDimInputs();
-    // Refresh sidebar to reflect placed/unplaced state
-    this._refreshSidebar();
+    if (this._ownsSidebar) this._refreshSidebar();
   }
 
   // -------------------------------------------------------------------------
-  // Sidebar
+  // Sidebar (owned by first editor only)
   // -------------------------------------------------------------------------
 
   _bindSidebar() {
@@ -96,9 +115,7 @@ export class LayoutEditor {
       if (filterEl) filterEl.value = "";
       this._refreshSidebar();
     });
-
     filterEl?.addEventListener("input", () => this._applyFilter());
-
     this._refreshSidebar();
   }
 
@@ -109,7 +126,6 @@ export class LayoutEditor {
       const name = (el.dataset.itemName || "").toLowerCase();
       el.style.display = name.includes(term) ? "" : "none";
     });
-    // Show/hide empty message
     const listEl = document.getElementById("dv2-sidebar-list");
     if (!listEl) return;
     const anyVisible = [...listEl.querySelectorAll(".dv2-sidebar-item")]
@@ -138,21 +154,15 @@ export class LayoutEditor {
     if (!config) return;
 
     listEl.innerHTML = '<div class="dv2-sidebar-loading">Loading…</div>';
-
     const items = await this._fetchItems(config.apiSlug);
-
-    // Items already placed (by netbox_id for module_bay, by port id for port_group)
     const placedIds = this._getPlacedIds(sidebarType);
-
     const available = items.filter((item) => !placedIds.has(String(item.id)));
 
     listEl.innerHTML = "";
-
     if (available.length === 0) {
       listEl.innerHTML = '<div class="dv2-sidebar-empty">All items placed.</div>';
       return;
     }
-
     for (const item of available) {
       listEl.appendChild(this._sidebarItemEl(item, sidebarType, config));
     }
@@ -196,8 +206,8 @@ export class LayoutEditor {
     el.appendChild(nameEl);
 
     el.addEventListener("dragstart", (e) => {
-      this._drag = {
-        source: "sidebar",
+      _drag = {
+        source:      "sidebar",
         itemId:      item.id,
         itemName,
         itemDisplay,
@@ -208,10 +218,9 @@ export class LayoutEditor {
       e.dataTransfer.effectAllowed = "copy";
       e.dataTransfer.setData("text/plain", String(item.id));
     });
-
     el.addEventListener("dragend", () => {
       el.classList.remove("dv2-dragging");
-      this._drag = null;
+      _drag = null;
     });
 
     return el;
@@ -250,9 +259,9 @@ export class LayoutEditor {
     this.gridEl.querySelectorAll(".dv2-empty-cell").forEach((cell) => {
 
       cell.addEventListener("dragover", (e) => {
-        if (!this._drag) return;
+        if (!_drag) return;
         e.preventDefault();
-        e.dataTransfer.dropEffect = this._drag.source === "sidebar" ? "copy" : "move";
+        e.dataTransfer.dropEffect = _drag.source === "sidebar" ? "copy" : "move";
         this.gridEl.querySelectorAll(".dv2-drag-over")
           .forEach((el) => el.classList.remove("dv2-drag-over"));
         cell.classList.add("dv2-drag-over");
@@ -263,37 +272,38 @@ export class LayoutEditor {
       cell.addEventListener("drop", (e) => {
         e.preventDefault();
         cell.classList.remove("dv2-drag-over");
-        if (!this._drag) return;
+        if (!_drag) return;
 
         const targetRow = parseInt(cell.dataset.row, 10);
         const targetCol = parseInt(cell.dataset.col, 10);
 
-        if (this._drag.source === "sidebar") {
-          this._createZoneFromSidebar(this._drag, targetRow, targetCol);
-        } else if (this._drag.source === "grid") {
-          this._moveZone(this._drag.zone, targetRow, targetCol);
+        if (_drag.source === "sidebar") {
+          this._createZoneFromSidebar(_drag, targetRow, targetCol);
+        } else if (_drag.source === "grid") {
+          // Only allow moving zones that belong to this editor's layout
+          if (this.layout.zones.some((z) => z.id === _drag.zone.id)) {
+            this._moveZone(_drag.zone, targetRow, targetCol);
+          }
         }
-        this._drag = null;
+        _drag = null;
       });
     });
   }
 
   _createZoneFromSidebar(drag, row, col) {
     this._pushHistory();
-
     const zoneLabel = drag.zoneType === "module_bay" ? drag.itemName : drag.itemDisplay;
     const zone = {
       id:           uid(),
       label:        zoneLabel,
       type:         drag.zoneType,
       netbox_id:    drag.zoneType === "module_bay" ? drag.itemId : null,
-      netbox_name:  drag.itemName,   // internal identifier, not displayed
+      netbox_name:  drag.itemName,
       grid_position: { row, col, row_span: 1, col_span: 1 },
       ports: drag.zoneType === "port_group"
         ? [{ id: String(drag.itemId), label: drag.itemDisplay, name: drag.itemName }]
         : [],
     };
-
     this.layout.zones.push(zone);
     this._renderAll();
   }
@@ -322,11 +332,10 @@ export class LayoutEditor {
         this._openEditModal(zone);
       });
 
-      // Drag zone to move (grid → grid)
       zoneEl.addEventListener("dragstart", (e) => {
         if (e.target.classList.contains("dv2-resize-handle")) { e.preventDefault(); return; }
         e.stopPropagation();
-        this._drag = { source: "grid", zone };
+        _drag = { source: "grid", zone };
         zoneEl.classList.add("dv2-dragging");
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", zone.id);
@@ -334,7 +343,7 @@ export class LayoutEditor {
 
       zoneEl.addEventListener("dragend", () => {
         zoneEl.classList.remove("dv2-dragging");
-        this._drag = null;
+        _drag = null;
         this.gridEl.querySelectorAll(".dv2-drag-over")
           .forEach((el) => el.classList.remove("dv2-drag-over"));
       });
@@ -346,8 +355,8 @@ export class LayoutEditor {
 
       // Allow additional sidebar ports to be dropped onto an existing port_group zone
       zoneEl.addEventListener("dragover", (e) => {
-        if (!this._drag || this._drag.source !== "sidebar") return;
-        if (this._drag.zoneType !== "port_group" || zone.type !== "port_group") return;
+        if (!_drag || _drag.source !== "sidebar") return;
+        if (_drag.zoneType !== "port_group" || zone.type !== "port_group") return;
         e.preventDefault();
         e.stopPropagation();
         e.dataTransfer.dropEffect = "copy";
@@ -362,10 +371,10 @@ export class LayoutEditor {
         e.preventDefault();
         e.stopPropagation();
         zoneEl.classList.remove("dv2-drag-over");
-        if (!this._drag || this._drag.source !== "sidebar") return;
-        if (this._drag.zoneType !== "port_group" || zone.type !== "port_group") return;
-        this._addPortToZone(zone, this._drag);
-        this._drag = null;
+        if (!_drag || _drag.source !== "sidebar") return;
+        if (_drag.zoneType !== "port_group" || zone.type !== "port_group") return;
+        this._addPortToZone(zone, _drag);
+        _drag = null;
       });
     });
   }
@@ -440,10 +449,11 @@ export class LayoutEditor {
   _cellHeight() { return this.gridEl.getBoundingClientRect().height / this.layout.grid.rows; }
 
   // -------------------------------------------------------------------------
-  // Edit modal
+  // Edit modal (shared; _activeModalEditor tracks which editor opened it)
   // -------------------------------------------------------------------------
 
   async _openEditModal(zone) {
+    _activeModalEditor = this;
     this._modalZone = zone;
 
     document.getElementById("dv2-modal-label").value   = zone.label || "";
@@ -451,16 +461,14 @@ export class LayoutEditor {
     document.getElementById("dv2-modal-colspan").value = zone.grid_position.col_span || 1;
     document.getElementById("dv2-modal-rowspan").value = zone.grid_position.row_span || 1;
 
-    // Ports list
     const portsList = document.getElementById("dv2-modal-ports-list");
     portsList.innerHTML = "";
     for (const p of zone.ports || []) {
-      portsList.appendChild(this._portRow(p.id, p.label));
+      portsList.appendChild(this._portRow(p.id, p.label, p.name));
     }
 
     this._modalUpdatePortsSection();
     await this._populatePortPicker(zone);
-
     document.getElementById("dv2-zone-modal").classList.add("dv2-modal-open");
   }
 
@@ -471,15 +479,11 @@ export class LayoutEditor {
   }
 
   async _populatePortPicker(zone) {
-    // Determine which API to use based on existing ports (or default to interface)
     const pick = document.getElementById("dv2-modal-port-pick");
     if (!pick) return;
-
-    // Try to detect port type from existing zone ports' netbox data — default interface
     const ifaceSlug = this.objectType === "device" ? "interfaces" : "interface-templates";
     const items = await this._fetchItems(ifaceSlug);
     const placedIds = new Set((zone.ports || []).map((p) => String(p.id)));
-
     pick.innerHTML = "<option value=''>— add a port —</option>";
     for (const item of items) {
       if (placedIds.has(String(item.id))) continue;
@@ -490,22 +494,25 @@ export class LayoutEditor {
     }
   }
 
-  _portRow(id, label) {
+  _portRow(id, label, name) {
     const row = document.createElement("div");
     row.className = "dv2-modal-port-row";
     row.dataset.portId = id;
 
-    const name = document.createElement("span");
-    name.style.cssText = "flex:1;font-size:0.85rem;color:#c0d4e8";
-    name.textContent = label;
-    row.appendChild(name);
+    const nameEl = document.createElement("span");
+    nameEl.style.cssText = "flex:1;font-size:0.85rem;color:#c0d4e8";
+    nameEl.textContent = label;
+    row.appendChild(nameEl);
 
     const hidId  = document.createElement("input");
     hidId.type = "hidden"; hidId.className = "port-id-val"; hidId.value = id;
     const hidLbl = document.createElement("input");
     hidLbl.type = "hidden"; hidLbl.className = "port-lbl-val"; hidLbl.value = label;
+    const hidName = document.createElement("input");
+    hidName.type = "hidden"; hidName.className = "port-name-val"; hidName.value = name || label;
     row.appendChild(hidId);
     row.appendChild(hidLbl);
+    row.appendChild(hidName);
 
     const rm = document.createElement("button");
     rm.type = "button"; rm.className = "dv2-modal-port-remove"; rm.innerHTML = "×";
@@ -514,23 +521,27 @@ export class LayoutEditor {
     return row;
   }
 
+  // Modal event binding — called once by the sidebar-owning editor.
+  // Delegates to _activeModalEditor for operations so any editor's zone can be edited.
   _bindModalEvents() {
     document.getElementById("dv2-modal-close-btn")
-      ?.addEventListener("click",  () => this._closeModal());
+      ?.addEventListener("click", () => _activeModalEditor?._closeModal());
     document.getElementById("dv2-modal-cancel-btn")
-      ?.addEventListener("click",  () => this._closeModal());
+      ?.addEventListener("click", () => _activeModalEditor?._closeModal());
     document.getElementById("dv2-zone-modal")
-      ?.addEventListener("click", (e) => { if (e.target === e.currentTarget) this._closeModal(); });
+      ?.addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) _activeModalEditor?._closeModal();
+      });
     document.getElementById("dv2-modal-type")
-      ?.addEventListener("change", () => this._modalUpdatePortsSection());
+      ?.addEventListener("change", () => _activeModalEditor?._modalUpdatePortsSection());
     document.getElementById("dv2-modal-add-port")
-      ?.addEventListener("click",  () => this._addPortFromPicker());
+      ?.addEventListener("click", () => _activeModalEditor?._addPortFromPicker());
     document.getElementById("dv2-modal-save-btn")
-      ?.addEventListener("click",  () => this._saveModal());
+      ?.addEventListener("click", () => _activeModalEditor?._saveModal());
     document.getElementById("dv2-modal-delete-btn")
-      ?.addEventListener("click",  () => {
-        if (this._modalZone) this._deleteZone(this._modalZone);
-        this._closeModal();
+      ?.addEventListener("click", () => {
+        if (_activeModalEditor?._modalZone) _activeModalEditor._deleteZone(_activeModalEditor._modalZone);
+        _activeModalEditor?._closeModal();
       });
   }
 
@@ -545,9 +556,8 @@ export class LayoutEditor {
   }
 
   _saveModal() {
-    const zone    = this._modalZone;
+    const zone = this._modalZone;
     if (!zone) return;
-
     this._pushHistory();
     zone.label = document.getElementById("dv2-modal-label").value.trim();
     zone.type  = document.getElementById("dv2-modal-type").value;
@@ -556,12 +566,12 @@ export class LayoutEditor {
 
     const ports = [];
     document.querySelectorAll("#dv2-modal-ports-list .dv2-modal-port-row").forEach((row) => {
-      const id  = row.querySelector(".port-id-val")?.value;
-      const lbl = row.querySelector(".port-lbl-val")?.value;
-      if (id) ports.push({ id, label: lbl || id });
+      const id   = row.querySelector(".port-id-val")?.value;
+      const lbl  = row.querySelector(".port-lbl-val")?.value;
+      const name = row.querySelector(".port-name-val")?.value;
+      if (id) ports.push({ id, label: lbl || id, name: name || lbl || id });
     });
     zone.ports = zone.type === "port_group" ? ports : [];
-
     this._closeModal();
     this._renderAll();
   }
@@ -572,12 +582,12 @@ export class LayoutEditor {
   }
 
   // -------------------------------------------------------------------------
-  // Grid dimensions
+  // Grid dimensions (scoped to this panel's wrapper)
   // -------------------------------------------------------------------------
 
   _bindDimInputs() {
-    const ri = document.getElementById("dv2-rows-input");
-    const ci = document.getElementById("dv2-cols-input");
+    const ri = this.wrapperEl.querySelector(".dv2-rows-input");
+    const ci = this.wrapperEl.querySelector(".dv2-cols-input");
     if (!ri || !ci) return;
     const apply = () => {
       const nr = Math.max(1, Math.min(20, parseInt(ri.value, 10) || 2));
@@ -605,14 +615,14 @@ export class LayoutEditor {
   }
 
   _syncDimInputs() {
-    const r = document.getElementById("dv2-rows-input");
-    const c = document.getElementById("dv2-cols-input");
-    if (r) r.value = this.layout.grid.rows;
-    if (c) c.value = this.layout.grid.cols;
+    const ri = this.wrapperEl.querySelector(".dv2-rows-input");
+    const ci = this.wrapperEl.querySelector(".dv2-cols-input");
+    if (ri) ri.value = this.layout.grid.rows;
+    if (ci) ci.value = this.layout.grid.cols;
   }
 
   // -------------------------------------------------------------------------
-  // Panel label
+  // Panel label (scoped to this panel)
   // -------------------------------------------------------------------------
 
   _bindPanelLabelInput() {
@@ -623,7 +633,7 @@ export class LayoutEditor {
   }
 
   // -------------------------------------------------------------------------
-  // Undo / Clear / Save / Keyboard
+  // Undo / Clear (scoped to this panel's wrapper)
   // -------------------------------------------------------------------------
 
   _pushHistory() {
@@ -631,39 +641,34 @@ export class LayoutEditor {
     if (this.history.length > 30) this.history.shift();
     this._updateUndoBtn();
   }
+
   _undo() {
     if (!this.history.length) return;
     this.layout = this.history.pop();
-    this._apiCache = {}; // reset cache so sidebar reflects new state
+    this._apiCache = {};
     this._updateUndoBtn();
     this._renderAll();
   }
+
   _updateUndoBtn() {
-    const btn = document.getElementById("dv2-undo-btn");
+    const btn = this.wrapperEl.querySelector(".dv2-undo-btn");
     if (btn) btn.disabled = !this.history.length;
   }
+
   _bindUndoClear() {
-    document.getElementById("dv2-undo-btn")?.addEventListener("click", () => this._undo());
-    document.getElementById("dv2-clear-btn")?.addEventListener("click", () => {
-      if (!confirm("Remove all zones?")) return;
-      this._pushHistory();
-      this.layout.zones = [];
-      this._renderAll();
-    });
-  }
-  _bindSave() {
-    document.getElementById("dv2-save-btn")?.addEventListener("click", () => {
-      document.getElementById("dv2-layout-data").value = JSON.stringify(this.layout);
-      document.getElementById("dv2-save-form").submit();
-    });
-  }
-  _onKeyDown(e) {
-    if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
-    if (e.ctrlKey && e.key === "z") { e.preventDefault(); this._undo(); }
+    this.wrapperEl.querySelector(".dv2-undo-btn")
+      ?.addEventListener("click", () => this._undo());
+    this.wrapperEl.querySelector(".dv2-clear-btn")
+      ?.addEventListener("click", () => {
+        if (!confirm("Remove all zones from this layout?")) return;
+        this._pushHistory();
+        this.layout.zones = [];
+        this._renderAll();
+      });
   }
 
   // -------------------------------------------------------------------------
-  // Resize bar (sidebar ↔ panel)
+  // Resize bar (sidebar ↔ panels column)
   // -------------------------------------------------------------------------
 
   _bindResizeBar() {
@@ -681,13 +686,11 @@ export class LayoutEditor {
         const newWidth = Math.max(140, Math.min(420, startWidth + ev.clientX - startX));
         sidebar.style.width = newWidth + "px";
       };
-
       const onUp = () => {
         bar.classList.remove("dv2-resizing");
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup",   onUp);
       };
-
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup",   onUp);
     });

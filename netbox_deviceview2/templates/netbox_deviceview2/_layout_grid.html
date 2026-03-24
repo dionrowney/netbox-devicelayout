@@ -1,20 +1,15 @@
 {% comment %}
 Shared panel layout include.
 Context vars:
-  layout_json, sub_layouts_json, edit_mode, can_edit,
-  save_url, object_type, object_pk
+  layout_json, sub_layouts_json, connections_json,
+  highlight_port, edit_mode, can_edit, save_url, object_type, object_pk
 {% endcomment %}
 
 {# ---- Toolbar ------------------------------------------------------------ #}
 <div class="dv2-toolbar d-flex align-items-center gap-2 mb-2 flex-wrap">
   {% if edit_mode %}
     <span class="badge bg-warning text-dark">Editing</span>
-    <label class="mb-0 fw-semibold small">Rows:</label>
-    <input id="dv2-rows-input" type="number" class="form-control form-control-sm" style="width:70px" min="1" max="20" value="2">
-    <label class="mb-0 fw-semibold small">Cols:</label>
-    <input id="dv2-cols-input" type="number" class="form-control form-control-sm" style="width:70px" min="1" max="48" value="6">
-    <button id="dv2-undo-btn" class="btn btn-sm btn-outline-secondary" title="Undo (Ctrl+Z)" disabled>&#8630; Undo</button>
-    <button id="dv2-clear-btn" class="btn btn-sm btn-outline-danger">Clear All</button>
+    <button id="dv2-add-layout-btn" class="btn btn-sm btn-outline-secondary">+ Add Layout</button>
     <button id="dv2-save-btn" class="btn btn-sm btn-primary ms-auto">
       <i class="mdi mdi-content-save"></i> Save Layout
     </button>
@@ -28,7 +23,7 @@ Context vars:
   {% endif %}
 </div>
 
-{# ---- Main editor area (sidebar + panel) --------------------------------- #}
+{# ---- Main editor area (sidebar + panels column) ------------------------- #}
 <div class="dv2-editor-layout{% if edit_mode %} dv2-edit-mode{% endif %}">
 
   {# Left sidebar — only in edit mode #}
@@ -50,34 +45,21 @@ Context vars:
       <div class="dv2-sidebar-loading">Loading…</div>
     </div>
   </aside>
-  {% endif %}
 
-  {# Resize bar between sidebar and panel #}
-  {% if edit_mode %}
+  {# Resize bar between sidebar and panels column #}
   <div class="dv2-resize-bar" id="dv2-resize-bar"><span></span></div>
   {% endif %}
 
-  {# Panel (dark chassis) #}
-  <div class="dv2-panel" id="dv2-panel">
-    {% if edit_mode %}
-      <input class="dv2-panel-label-input" type="text" placeholder="PANEL LABEL (e.g. REAR PANEL)">
-    {% else %}
-      <div class="dv2-panel-label"></div>
-    {% endif %}
-
-    <div class="dv2-grid"
-         id="dv2-grid"
-         data-layout="{{ layout_json }}"
-         data-sub-layouts="{{ sub_layouts_json }}"
-         data-connections="{{ connections_json }}"
-         data-edit="{{ edit_mode|yesno:'true,false' }}"
-         data-object-type="{{ object_type }}"
-         data-object-pk="{{ object_pk }}"
-         data-highlight-port="{{ highlight_port|default:'' }}">
-      <noscript>
-        <p style="color:#8ab4d4;padding:1rem">JavaScript is required to display the layout.</p>
-      </noscript>
-    </div>
+  {# Panels column — JS creates dv2-panel divs inside here #}
+  <div class="dv2-panels-column"
+       id="dv2-panels-column"
+       data-layouts="{{ layout_json }}"
+       data-sub-layouts="{{ sub_layouts_json }}"
+       data-connections="{{ connections_json }}"
+       data-edit="{{ edit_mode|yesno:'true,false' }}"
+       data-highlight-port="{{ highlight_port|default:'' }}"
+       data-object-type="{{ object_type }}"
+       data-object-pk="{{ object_pk }}">
   </div>
 
 </div>{# .dv2-editor-layout #}
