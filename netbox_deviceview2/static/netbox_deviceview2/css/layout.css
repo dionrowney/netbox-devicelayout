@@ -444,6 +444,22 @@
 }
 /* dv2-unconnected uses the base .dv2-port style (#4a6a9a) */
 
+/* Highlight: flash yellow — separate animations for connected vs unconnected */
+@keyframes dv2-flash-unconnected {
+  0%, 100% { background: #4a6a9a; border-color: #5a7aaa; color: #ddeeff; }
+  50%       { background: #c8a000; border-color: #f0c000; color: #1a1000; }
+}
+@keyframes dv2-flash-connected {
+  0%, 100% { background: #1a6a30; border-color: #28a745; color: #a8f0b8; }
+  50%       { background: #c8a000; border-color: #f0c000; color: #1a1000; }
+}
+.dv2-port.dv2-highlight {
+  animation: dv2-flash-unconnected 1s ease-in-out infinite;
+}
+.dv2-port.dv2-connected.dv2-highlight {
+  animation: dv2-flash-connected 1s ease-in-out infinite;
+}
+
 /* ---- Port hover tooltip ------------------------------------------------- */
 .dv2-port-tooltip {
   position: fixed;

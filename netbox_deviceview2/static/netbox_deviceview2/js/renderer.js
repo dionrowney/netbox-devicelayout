@@ -121,6 +121,10 @@ export function createPortEl(port, portData, editable) {
 
   const connected = typeof portData === "object" ? portData?.connected : !!portData;
 
+  // Store resolved name as data attribute so highlight can find this element by name
+  const resolvedName = (typeof portData === "object" ? portData?.name : null) || port.name || "";
+  if (resolvedName) el.dataset.portName = resolvedName;
+
   if (!editable) {
     el.classList.add(connected ? "dv2-connected" : "dv2-unconnected");
 

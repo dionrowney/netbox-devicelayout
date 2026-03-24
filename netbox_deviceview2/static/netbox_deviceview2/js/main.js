@@ -21,10 +21,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const panelEl = document.getElementById("dv2-panel");
   if (!gridEl || !panelEl) return;
 
-  const layout      = safeParseJSON(gridEl.dataset.layout, {});
-  const subLayouts  = safeParseJSON(gridEl.dataset.subLayouts, {});
-  const connections = safeParseJSON(gridEl.dataset.connections, {});
-  const editMode    = gridEl.dataset.edit === "true";
+  const layout        = safeParseJSON(gridEl.dataset.layout, {});
+  const subLayouts    = safeParseJSON(gridEl.dataset.subLayouts, {});
+  const connections   = safeParseJSON(gridEl.dataset.connections, {});
+  const editMode      = gridEl.dataset.edit === "true";
+  const highlightPort = gridEl.dataset.highlightPort || "";
 
   if (editMode) {
     const editor = new LayoutEditor(panelEl, gridEl, layout, subLayouts);
@@ -35,5 +36,10 @@ document.addEventListener("DOMContentLoaded", () => {
       connections,
       subLayouts,
     });
+
+    if (highlightPort) {
+      const portEl = gridEl.querySelector(`[data-port-name="${CSS.escape(highlightPort)}"]`);
+      if (portEl) portEl.classList.add("dv2-highlight");
+    }
   }
 });

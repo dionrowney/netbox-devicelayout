@@ -72,7 +72,8 @@ Context vars:
          data-connections="{{ connections_json }}"
          data-edit="{{ edit_mode|yesno:'true,false' }}"
          data-object-type="{{ object_type }}"
-         data-object-pk="{{ object_pk }}">
+         data-object-pk="{{ object_pk }}"
+         data-highlight-port="{{ highlight_port|default:'' }}">
       <noscript>
         <p style="color:#8ab4d4;padding:1rem">JavaScript is required to display the layout.</p>
       </noscript>
