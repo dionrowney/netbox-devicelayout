@@ -139,15 +139,32 @@ class DeviceLayoutView(ObjectView):
             except ModuleTypeLayout.DoesNotExist:
                 pass
 
-        # --- Connections: live cable status ------------------------------------
-        # Build device-wide name → connected lookup for all port types.
-        port_connected = {}
-        for iface in instance.interfaces.all():
-            port_connected[iface.name] = iface.cable_id is not None
-        for fp in instance.frontports.all():
-            port_connected[fp.name] = fp.cable_id is not None
-        for rp in instance.rearports.all():
-            port_connected[rp.name] = rp.cable_id is not None
+        # --- Connections: live cable status + tooltip data ---------------------
+        # Build device-wide name → port info dict for all port types.
+        def _port_info(obj):
+            cable_label = ""
+            if obj.cable:
+                cable_label = obj.cable.label or f"#{obj.cable.pk}"
+            peers = []
+            try:
+                for peer in (obj.link_peers or []):
+                    if hasattr(peer, "device") and hasattr(peer, "name"):
+                        peers.append(f"{peer.device} / {peer.name}")
+                    elif hasattr(peer, "circuit"):
+                        peers.append(f"Circuit {peer.circuit.cid}")
+                    else:
+                        peers.append(str(peer))
+            except Exception:
+                pass
+            return {"connected": obj.cable_id is not None, "cable": cable_label, "peers": peers}
+
+        port_info = {}
+        for iface in instance.interfaces.select_related("cable").all():
+            port_info[iface.name] = _port_info(iface)
+        for fp in instance.frontports.select_related("cable").all():
+            port_info[fp.name] = _port_info(fp)
+        for rp in instance.rearports.select_related("cable").all():
+            port_info[rp.name] = _port_info(rp)
 
         connections = {}
 
@@ -155,8 +172,14 @@ class DeviceLayoutView(ObjectView):
         for zone in zones:
             for port in zone.get("ports", []):
                 port_name = port.get("name")
-                if port_name and port_name in port_connected:
-                    connections[f"{zone['id']}:{port['id']}"] = port_connected[port_name]
+                if port_name and port_name in port_info:
+                    info = port_info[port_name]
+                    connections[f"{zone['id']}:{port['id']}"] = {
+                        "connected": info["connected"],
+                        "name": port_name,
+                        "cable": info["cable"],
+                        "peers": info["peers"],
+                    }
 
         # Sub-layout zone ports: stored with template ID + label only (no name).
         # Resolve by fetching the template name and substituting {module} with
@@ -196,8 +219,17 @@ class DeviceLayoutView(ObjectView):
                         if not template_name:
                             continue
                         actual_name = template_name.replace("{module}", bay_position)
-                        if actual_name in port_connected:
-                            connections[f"{sub_zone['id']}:{port['id']}"] = port_connected[actual_name]
+                        if actual_name in port_info:
+                            info = port_info[actual_name]
+                            # Key is prefixed with the parent module-bay zone id so that
+                            # multiple bays using the same module type don't collide
+                            # (sub-layout zone/port IDs are identical across instances).
+                            connections[f"{zone['id']}/{sub_zone['id']}:{port['id']}"] = {
+                                "connected": info["connected"],
+                                "name": actual_name,
+                                "cable": info["cable"],
+                                "peers": info["peers"],
+                            }
 
         save_url = reverse(
             "plugins:netbox_deviceview2:device_layout_save",

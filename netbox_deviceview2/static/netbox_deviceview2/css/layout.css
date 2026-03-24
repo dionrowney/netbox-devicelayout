@@ -386,7 +386,6 @@
   box-sizing: border-box;
   position: relative;
   min-height: 88px;
-  overflow: hidden;
   transition: outline 0.1s;
 }
 .dv2-zone[data-type="module_bay"] { background: var(--dv2-mb-bg); border: 1px solid var(--dv2-mb-bdr); }
@@ -416,6 +415,9 @@
   display: flex;
   gap: 3px;
   flex-wrap: wrap;
+}
+/* Disable pointer events only in edit mode so tooltips still work in view mode */
+.dv2-edit-mode .dv2-ports {
   pointer-events: none;
 }
 .dv2-port {
@@ -432,6 +434,7 @@
   background: #4a6a9a;
   border: 1px solid #5a7aaa;
   color: #ddeeff;
+  cursor: default;
 }
 /* View-mode connection status */
 .dv2-port.dv2-connected {
@@ -440,6 +443,41 @@
   color: #a8f0b8;
 }
 /* dv2-unconnected uses the base .dv2-port style (#4a6a9a) */
+
+/* ---- Port hover tooltip ------------------------------------------------- */
+.dv2-port-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: var(--dv2-modal-bg);
+  border: 1px solid var(--dv2-modal-border);
+  border-radius: 5px;
+  padding: 6px 9px;
+  font-size: 0.75rem;
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--dv2-modal-color);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+  pointer-events: none;
+  white-space: nowrap;
+  min-width: 130px;
+}
+.dv2-tt-row {
+  display: flex;
+  gap: 6px;
+  line-height: 1.7;
+}
+.dv2-tt-key {
+  color: var(--dv2-modal-label);
+  min-width: 44px;
+  flex-shrink: 0;
+}
+.dv2-tt-val {
+  color: var(--dv2-modal-color);
+  word-break: break-word;
+  white-space: normal;
+}
+.dv2-tt-unconnected {
+  color: var(--dv2-sidebar-muted);
+}
 
 /* ---- Edit mode zone controls ------------------------------------------- */
 .dv2-edit-mode .dv2-zone { cursor: grab; }

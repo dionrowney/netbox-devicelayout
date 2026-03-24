@@ -52,21 +52,81 @@ export function createEmptyCellEl(row, col) {
   return el;
 }
 
+// Shared tooltip element — created once, appended to body.
+let _tooltipEl = null;
+function _getTooltip() {
+  if (!_tooltipEl) {
+    _tooltipEl = document.createElement("div");
+    _tooltipEl.className = "dv2-port-tooltip";
+    _tooltipEl.style.display = "none";
+    document.body.appendChild(_tooltipEl);
+  }
+  return _tooltipEl;
+}
+
+function _showTooltip(e, port, portData) {
+  const tt = _getTooltip();
+  const name = portData?.name || port.name || port.label || port.id;
+  const cable = portData?.cable || "";
+  const peers = portData?.peers || [];
+  const connected = portData?.connected ?? false;
+
+  let html = `<div class="dv2-tt-row"><span class="dv2-tt-key">Port</span><span class="dv2-tt-val">${_esc(name)}</span></div>`;
+  if (connected) {
+    html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Cable</span><span class="dv2-tt-val">${_esc(cable || "connected")}</span></div>`;
+    if (peers.length) {
+      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Peer${peers.length > 1 ? "s" : ""}</span><span class="dv2-tt-val">${peers.map(_esc).join("<br>")}</span></div>`;
+    }
+  } else {
+    html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Status</span><span class="dv2-tt-val dv2-tt-unconnected">Not connected</span></div>`;
+  }
+
+  tt.innerHTML = html;
+  tt.style.display = "block";
+  _positionTooltip(e);
+}
+
+function _positionTooltip(e) {
+  const tt = _getTooltip();
+  const x = e.clientX + 12;
+  const y = e.clientY + 12;
+  const rect = tt.getBoundingClientRect();
+  // Flip left if would overflow viewport right
+  const left = x + rect.width > window.innerWidth ? e.clientX - rect.width - 8 : x;
+  const top  = y + rect.height > window.innerHeight ? e.clientY - rect.height - 8 : y;
+  tt.style.left = `${left}px`;
+  tt.style.top  = `${top}px`;
+}
+
+function _hideTooltip() {
+  const tt = _getTooltip();
+  tt.style.display = "none";
+}
+
+function _esc(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /**
  * Create a port indicator element.
  * @param {object} port        - { id, label }
- * @param {boolean} connected  - true = green, false = grey (view mode)
- * @param {boolean} editable   - if true, neutral colour used
+ * @param {object|boolean} portData  - connection object {connected, name, cable, peers} or boolean (view mode)
+ * @param {boolean} editable   - if true, neutral colour used, no tooltip
  */
-export function createPortEl(port, connected, editable) {
+export function createPortEl(port, portData, editable) {
   const el = document.createElement("div");
   el.className = "dv2-port";
   el.dataset.portId = port.id;
-  el.title = port.label;
   el.textContent = port.label;
+
+  const connected = typeof portData === "object" ? portData?.connected : !!portData;
 
   if (!editable) {
     el.classList.add(connected ? "dv2-connected" : "dv2-unconnected");
+
+    el.addEventListener("mouseenter", (e) => _showTooltip(e, port, typeof portData === "object" ? portData : null));
+    el.addEventListener("mousemove", _positionTooltip);
+    el.addEventListener("mouseleave", _hideTooltip);
   }
   return el;
 }
@@ -107,15 +167,15 @@ export function createZoneEl(zone, opts = {}) {
     const portsEl = document.createElement("div");
     portsEl.className = "dv2-ports";
     for (const port of zone.ports) {
-      const connected = !!connections[`${zone.id}:${port.id}`];
-      portsEl.appendChild(createPortEl(port, connected, editable));
+      const portData = connections[`${zone.id}:${port.id}`] ?? false;
+      portsEl.appendChild(createPortEl(port, portData, editable));
     }
     el.appendChild(portsEl);
   }
 
   // Nested sub-layout (for module bays with installed modules)
   if (!editable && zone.type === "module_bay" && subLayouts[zone.id]) {
-    _renderSubLayout(el, subLayouts[zone.id], opts);
+    _renderSubLayout(el, subLayouts[zone.id], opts, zone.id);
   }
 
   // Edit-mode controls
@@ -149,12 +209,31 @@ export function createZoneEl(zone, opts = {}) {
 
 /**
  * Render a sub-layout (installed module's ports) inside a module bay zone.
+ * @param {HTMLElement} parentEl
+ * @param {object}      subLayout
+ * @param {object}      opts
+ * @param {string}      parentZoneId  - the module-bay zone id, used to scope connections
  */
-function _renderSubLayout(parentEl, subLayout, opts) {
+function _renderSubLayout(parentEl, subLayout, opts, parentZoneId) {
   if (!subLayout || !subLayout.zones || subLayout.zones.length === 0) return;
 
   const rows = subLayout.grid?.rows || 1;
   const cols = subLayout.grid?.cols || 4;
+
+  // Build a scoped connections dict: strip the "parentZoneId/" prefix so
+  // createZoneEl can look up keys as "{sub_zone_id}:{port_id}" normally.
+  const prefix = parentZoneId ? `${parentZoneId}/` : "";
+  const allConns = opts.connections || {};
+  const subConns = {};
+  if (prefix) {
+    for (const [k, v] of Object.entries(allConns)) {
+      if (k.startsWith(prefix)) {
+        subConns[k.slice(prefix.length)] = v;
+      }
+    }
+  }
+
+  const subOpts = { ...opts, editable: false, connections: subConns };
 
   const subGrid = document.createElement("div");
   subGrid.style.cssText =
@@ -164,7 +243,7 @@ function _renderSubLayout(parentEl, subLayout, opts) {
     `gap:3px;width:100%;`;
 
   for (const zone of subLayout.zones) {
-    const zoneEl = createZoneEl(zone, { ...opts, editable: false });
+    const zoneEl = createZoneEl(zone, subOpts);
     zoneEl.style.fontSize = "0.65rem";
     subGrid.appendChild(zoneEl);
   }
