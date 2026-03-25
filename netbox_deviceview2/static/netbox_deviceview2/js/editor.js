@@ -78,6 +78,7 @@ export class LayoutEditor {
       this._bindModalEvents();
       this._bindResizeBar();
     }
+    this._wrapGridWithControls();
     // Note: global Ctrl+Z is handled in main.js; per-editor _undo() is public.
   }
 
@@ -100,6 +101,7 @@ export class LayoutEditor {
     this._updateUndoBtn();
     this._syncDimInputs();
     if (this._ownsSidebar) this._refreshSidebar();
+    if (this._colControlsEl) this._renderGridControls();
   }
 
   // -------------------------------------------------------------------------
@@ -292,7 +294,7 @@ export class LayoutEditor {
 
   _createZoneFromSidebar(drag, row, col) {
     this._pushHistory();
-    const zoneLabel = drag.zoneType === "module_bay" ? drag.itemName : drag.itemDisplay;
+    const zoneLabel = drag.zoneType === "module_bay" ? drag.itemName : "";
     const zone = {
       id:           uid(),
       label:        zoneLabel,
@@ -447,6 +449,153 @@ export class LayoutEditor {
 
   _cellWidth()  { return this.gridEl.getBoundingClientRect().width  / this.layout.grid.cols; }
   _cellHeight() { return this.gridEl.getBoundingClientRect().height / this.layout.grid.rows; }
+
+  // -------------------------------------------------------------------------
+  // Grid col/row insert+delete controls
+  // -------------------------------------------------------------------------
+
+  _wrapGridWithControls() {
+    // Wrap gridEl in a positioned container so col/row controls can be
+    // positioned absolutely relative to it — guaranteeing exact alignment.
+    const wrapper = document.createElement("div");
+    wrapper.className = "dv2-grid-ctrl-wrapper";
+    this.panelEl.insertBefore(wrapper, this.gridEl);
+    wrapper.appendChild(this.gridEl);
+
+    this._colControlsEl = document.createElement("div");
+    this._colControlsEl.className = "dv2-col-controls";
+    wrapper.appendChild(this._colControlsEl);
+
+    this._rowControlsEl = document.createElement("div");
+    this._rowControlsEl.className = "dv2-row-controls";
+    wrapper.appendChild(this._rowControlsEl);
+
+    this._renderGridControls();
+  }
+
+  _renderGridControls() {
+    const { cols, rows } = this.layout.grid;
+    // Must match renderer.js render() exactly so controls align with grid cells.
+    const colTemplate = `repeat(${cols}, minmax(80px, 1fr))`;
+    const rowTemplate = `repeat(${rows}, minmax(88px, 1fr))`;
+
+    // Col controls — same CSS Grid template as the main grid
+    this._colControlsEl.innerHTML = "";
+    this._colControlsEl.style.gridTemplateColumns = colTemplate;
+    this._colControlsEl.style.gap = "5px";
+    for (let c = 1; c <= cols; c++) {
+      const cell = document.createElement("div");
+      cell.className = "dv2-col-ctrl-cell";
+      // + at left boundary (in the gap to the left of this column)
+      cell.appendChild(this._makeGridCtrlBtn("insert", "col", c));
+      // × centred in this column
+      cell.appendChild(this._makeGridCtrlBtn("delete", "col", c));
+      // Last column: trailing + at right boundary
+      if (c === cols) {
+        const t = this._makeGridCtrlBtn("insert", "col", c + 1);
+        t.classList.add("dv2-gridctrl-trailing");
+        cell.appendChild(t);
+      }
+      this._colControlsEl.appendChild(cell);
+    }
+
+    // Row controls — same CSS Grid template as the main grid
+    this._rowControlsEl.innerHTML = "";
+    this._rowControlsEl.style.gridTemplateRows = rowTemplate;
+    this._rowControlsEl.style.gap = "5px";
+    for (let r = 1; r <= rows; r++) {
+      const cell = document.createElement("div");
+      cell.className = "dv2-row-ctrl-cell";
+      // + at top boundary
+      cell.appendChild(this._makeGridCtrlBtn("insert", "row", r));
+      // × centred in this row
+      cell.appendChild(this._makeGridCtrlBtn("delete", "row", r));
+      // Last row: trailing + at bottom boundary
+      if (r === rows) {
+        const t = this._makeGridCtrlBtn("insert", "row", r + 1);
+        t.classList.add("dv2-gridctrl-trailing");
+        cell.appendChild(t);
+      }
+      this._rowControlsEl.appendChild(cell);
+    }
+  }
+
+  _makeGridCtrlBtn(action, axis, index) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `dv2-gridctrl-${action} dv2-gridctrl-${action}-${axis}`;
+    btn.textContent = action === "insert" ? "+" : "×";
+    btn.title = action === "insert"
+      ? `Insert ${axis} here`
+      : `Delete ${axis} ${index}`;
+    btn.addEventListener("click", () => {
+      if (action === "insert") { if (axis === "col") this._insertCol(index); else this._insertRow(index); }
+      else                     { if (axis === "col") this._deleteCol(index); else this._deleteRow(index); }
+    });
+    return btn;
+  }
+
+  _insertCol(before) {
+    this._pushHistory();
+    this.layout.grid.cols = Math.min(48, this.layout.grid.cols + 1);
+    for (const z of this.layout.zones) {
+      const p = z.grid_position;
+      if (p.col >= before) {
+        p.col++;
+      } else if (p.col < before && p.col + (p.col_span || 1) > before) {
+        p.col_span = (p.col_span || 1) + 1;
+      }
+    }
+    this._renderAll();
+  }
+
+  _deleteCol(col) {
+    if (this.layout.grid.cols <= 1) return;
+    this._pushHistory();
+    this.layout.zones = this.layout.zones.filter((z) => {
+      const p = z.grid_position;
+      const cs = p.col_span || 1;
+      if (p.col <= col && p.col + cs - 1 >= col) {
+        p.col_span = cs - 1;
+        if (p.col_span < 1) return false;
+      }
+      if (p.col > col) p.col--;
+      return true;
+    });
+    this.layout.grid.cols--;
+    this._renderAll();
+  }
+
+  _insertRow(before) {
+    this._pushHistory();
+    this.layout.grid.rows = Math.min(20, this.layout.grid.rows + 1);
+    for (const z of this.layout.zones) {
+      const p = z.grid_position;
+      if (p.row >= before) {
+        p.row++;
+      } else if (p.row < before && p.row + (p.row_span || 1) > before) {
+        p.row_span = (p.row_span || 1) + 1;
+      }
+    }
+    this._renderAll();
+  }
+
+  _deleteRow(row) {
+    if (this.layout.grid.rows <= 1) return;
+    this._pushHistory();
+    this.layout.zones = this.layout.zones.filter((z) => {
+      const p = z.grid_position;
+      const rs = p.row_span || 1;
+      if (p.row <= row && p.row + rs - 1 >= row) {
+        p.row_span = rs - 1;
+        if (p.row_span < 1) return false;
+      }
+      if (p.row > row) p.row--;
+      return true;
+    });
+    this.layout.grid.rows--;
+    this._renderAll();
+  }
 
   // -------------------------------------------------------------------------
   // Edit modal (shared; _activeModalEditor tracks which editor opened it)
