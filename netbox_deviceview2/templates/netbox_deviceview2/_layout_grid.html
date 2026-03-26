@@ -117,17 +117,11 @@ Context vars:
         </div>
       </div>
 
-      {# Port picker — shown when type = port_group #}
+      {# Port list — shown when type = port_group #}
       <div id="dv2-modal-ports-section" style="display:none">
         <label class="form-label">Ports in this zone</label>
         <div id="dv2-modal-ports-list" class="mb-2"></div>
-        <div class="d-flex gap-2 align-items-center">
-          <select id="dv2-modal-port-pick" class="dv2-select" style="flex:1">
-            <option value="">— add a port —</option>
-          </select>
-          <button type="button" id="dv2-modal-add-port" class="btn btn-sm btn-outline-secondary">Add</button>
-        </div>
-        <div class="dv2-form-hint">Drag additional items from the sidebar, or add here.</div>
+        <div class="dv2-form-hint">Drag items from the sidebar to add ports.</div>
       </div>
 
     </div>

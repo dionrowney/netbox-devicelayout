@@ -627,7 +627,6 @@ export class LayoutEditor {
     }
 
     this._modalUpdatePortsSection();
-    await this._populatePortPicker(zone);
     document.getElementById("dv2-zone-modal").classList.add("dv2-modal-open");
   }
 
@@ -635,22 +634,6 @@ export class LayoutEditor {
     const type = document.getElementById("dv2-modal-type").value;
     document.getElementById("dv2-modal-ports-section").style.display =
       type === "port_group" ? "" : "none";
-  }
-
-  async _populatePortPicker(zone) {
-    const pick = document.getElementById("dv2-modal-port-pick");
-    if (!pick) return;
-    const ifaceSlug = this.objectType === "device" ? "interfaces" : "interface-templates";
-    const items = await this._fetchItems(ifaceSlug);
-    const placedIds = new Set((zone.ports || []).map((p) => String(p.id)));
-    pick.innerHTML = "<option value=''>— add a port —</option>";
-    for (const item of items) {
-      if (placedIds.has(String(item.id))) continue;
-      const opt = document.createElement("option");
-      opt.value = item.id;
-      opt.textContent = item.name || item.display || String(item.id);
-      pick.appendChild(opt);
-    }
   }
 
   _portRow(id, label, name) {
@@ -693,8 +676,6 @@ export class LayoutEditor {
       });
     document.getElementById("dv2-modal-type")
       ?.addEventListener("change", () => _activeModalEditor?._modalUpdatePortsSection());
-    document.getElementById("dv2-modal-add-port")
-      ?.addEventListener("click", () => _activeModalEditor?._addPortFromPicker());
     document.getElementById("dv2-modal-save-btn")
       ?.addEventListener("click", () => _activeModalEditor?._saveModal());
     document.getElementById("dv2-modal-delete-btn")
@@ -702,16 +683,6 @@ export class LayoutEditor {
         if (_activeModalEditor?._modalZone) _activeModalEditor._deleteZone(_activeModalEditor._modalZone);
         _activeModalEditor?._closeModal();
       });
-  }
-
-  _addPortFromPicker() {
-    const sel = document.getElementById("dv2-modal-port-pick");
-    const id  = sel?.value;
-    if (!id) return;
-    const label = sel.options[sel.selectedIndex]?.textContent || id;
-    document.getElementById("dv2-modal-ports-list").appendChild(this._portRow(id, label));
-    sel.options[sel.selectedIndex].remove();
-    sel.value = "";
   }
 
   _saveModal() {
