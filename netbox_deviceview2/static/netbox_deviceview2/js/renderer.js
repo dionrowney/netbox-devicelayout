@@ -144,7 +144,7 @@ export function createPortEl(port, portData, editable) {
  * @param {object}  opts.subLayouts   - { zone_id: layoutObj } for nested module layouts
  */
 export function createZoneEl(zone, opts = {}) {
-  const { editable = false, connections = {}, subLayouts = {} } = opts;
+  const { editable = false, connections = {}, subLayouts = {}, deviceBays = {} } = opts;
   const p = zone.grid_position;
 
   const el = document.createElement("div");
@@ -180,6 +180,19 @@ export function createZoneEl(zone, opts = {}) {
   // Nested sub-layout (for module bays with installed modules)
   if (!editable && zone.type === "module_bay" && subLayouts[zone.id]) {
     _renderSubLayout(el, subLayouts[zone.id], opts, zone.id);
+  }
+
+  // Device bay: show installed device name with link (view mode only)
+  if (!editable && zone.type === "device_bay") {
+    const bayInfo = deviceBays[zone.id];
+    if (bayInfo) {
+      const link = document.createElement("a");
+      link.className = "dv2-device-bay-link";
+      link.href = bayInfo.device_url;
+      link.textContent = bayInfo.device_name;
+      link.title = `Go to device: ${bayInfo.device_name}`;
+      el.appendChild(link);
+    }
   }
 
   // Edit-mode controls

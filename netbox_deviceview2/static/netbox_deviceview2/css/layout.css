@@ -65,6 +65,11 @@
   --dv2-cu-bdr:   #4a8a4a;
   --dv2-cu-label: #2a6a2a;
 
+  /* Zone: device_bay */
+  --dv2-db-bg:    #c8e4e4;
+  --dv2-db-bdr:   #2a8a8a;
+  --dv2-db-label: #1a5a5a;
+
   /* Edit-zone modal */
   --dv2-modal-overlay:      rgba(0, 0, 0, 0.4);
   --dv2-modal-bg:           #ffffff;
@@ -143,6 +148,11 @@
   --dv2-cu-bg:    #162a16;
   --dv2-cu-bdr:   #2a5a2a;
   --dv2-cu-label: #70b070;
+
+  /* Zone: device_bay */
+  --dv2-db-bg:    #1a3535;
+  --dv2-db-bdr:   #2a8a8a;
+  --dv2-db-label: #6acaca;
 
   /* Modal */
   --dv2-modal-overlay:      rgba(0, 0, 0, 0.6);
@@ -308,6 +318,7 @@
 .dv2-dot-console-server-port { background: #9a6a10; }
 .dv2-dot-power-port          { background: #8a3020; }
 .dv2-dot-power-outlet        { background: #7a2050; }
+.dv2-dot-device-bay          { background: #2a7a7a; }
 
 .dv2-sidebar-item-name {
   font-size: 0.78rem;
@@ -421,6 +432,7 @@
 .dv2-zone[data-type="port_group"] { background: var(--dv2-pg-bg); border: 1px solid var(--dv2-pg-bdr); }
 .dv2-zone[data-type="power"]      { background: var(--dv2-pw-bg); border: 1px solid var(--dv2-pw-bdr); }
 .dv2-zone[data-type="custom"]     { background: var(--dv2-cu-bg); border: 1px solid var(--dv2-cu-bdr); }
+.dv2-zone[data-type="device_bay"] { background: var(--dv2-db-bg); border: 1px solid var(--dv2-db-bdr); }
 
 .dv2-zone-label {
   font-family: 'Courier New', Courier, monospace;
@@ -433,6 +445,24 @@
 .dv2-zone[data-type="port_group"] .dv2-zone-label { color: var(--dv2-pg-label); }
 .dv2-zone[data-type="power"]      .dv2-zone-label { color: var(--dv2-pw-label); }
 .dv2-zone[data-type="custom"]     .dv2-zone-label { color: var(--dv2-cu-label); }
+.dv2-zone[data-type="device_bay"] .dv2-zone-label { color: var(--dv2-db-label); }
+
+/* Device bay installed-device link */
+.dv2-device-bay-link {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--dv2-db-label);
+  text-align: center;
+  text-decoration: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.dv2-device-bay-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
 
 .dv2-edit-mode .dv2-zone.dv2-drag-over {
   outline: 2px solid #4a9eff;

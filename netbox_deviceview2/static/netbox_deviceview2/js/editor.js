@@ -25,10 +25,11 @@ let _activeModalEditor = null;
 
 // Maps sidebar dropdown value → API config
 const SIDEBAR_TYPES = {
-  "module-bay":  { apiSlug: "module-bay-templates",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay" },
-  "interface":   { apiSlug: "interface-templates",   zoneType: "port_group",  dotClass: "dv2-dot-interface"  },
-  "front-port":  { apiSlug: "front-port-templates",  zoneType: "port_group",  dotClass: "dv2-dot-front-port" },
-  "rear-port":   { apiSlug: "rear-port-templates",   zoneType: "port_group",  dotClass: "dv2-dot-rear-port"  },
+  "module-bay":  { apiSlug: "module-bay-templates",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay"  },
+  "interface":   { apiSlug: "interface-templates",   zoneType: "port_group",  dotClass: "dv2-dot-interface"   },
+  "front-port":  { apiSlug: "front-port-templates",  zoneType: "port_group",  dotClass: "dv2-dot-front-port"  },
+  "rear-port":   { apiSlug: "rear-port-templates",   zoneType: "port_group",  dotClass: "dv2-dot-rear-port"   },
+  "device-bay":  { apiSlug: "device-bay-templates",  zoneType: "device_bay",  dotClass: "dv2-dot-device-bay"  },
 };
 
 const DEVICE_SIDEBAR_TYPES = {
@@ -36,6 +37,7 @@ const DEVICE_SIDEBAR_TYPES = {
   "interface":           { apiSlug: "interfaces",                zoneType: "port_group",  dotClass: "dv2-dot-interface"           },
   "front-port":          { apiSlug: "front-ports",               zoneType: "port_group",  dotClass: "dv2-dot-front-port"          },
   "rear-port":           { apiSlug: "rear-ports",                zoneType: "port_group",  dotClass: "dv2-dot-rear-port"           },
+  "device-bay":          { apiSlug: "device-bays",               zoneType: "device_bay",  dotClass: "dv2-dot-device-bay"          },
   "console-port":        { apiSlug: "console-ports",             zoneType: "port_group",  dotClass: "dv2-dot-console-port"        },
   "console-server-port": { apiSlug: "console-server-ports",      zoneType: "port_group",  dotClass: "dv2-dot-console-server-port" },
   "power-port":          { apiSlug: "power-ports",               zoneType: "port_group",  dotClass: "dv2-dot-power-port"          },
@@ -179,6 +181,8 @@ export class LayoutEditor {
     for (const zone of this.layout.zones) {
       if (sidebarType === "module-bay" && zone.type === "module_bay" && zone.netbox_id) {
         ids.add(String(zone.netbox_id));
+      } else if (sidebarType === "device-bay" && zone.type === "device_bay" && zone.netbox_id) {
+        ids.add(String(zone.netbox_id));
       } else if (
         (sidebarType === "interface" || sidebarType === "front-port" || sidebarType === "rear-port" ||
          sidebarType === "console-port" || sidebarType === "console-server-port" ||
@@ -300,12 +304,12 @@ export class LayoutEditor {
 
   _createZoneFromSidebar(drag, row, col) {
     this._pushHistory();
-    const zoneLabel = drag.zoneType === "module_bay" ? drag.itemName : "";
+    const zoneLabel = (drag.zoneType === "module_bay" || drag.zoneType === "device_bay") ? drag.itemName : "";
     const zone = {
       id:           uid(),
       label:        zoneLabel,
       type:         drag.zoneType,
-      netbox_id:    drag.zoneType === "module_bay" ? drag.itemId : null,
+      netbox_id:    (drag.zoneType === "module_bay" || drag.zoneType === "device_bay") ? drag.itemId : null,
       netbox_name:  drag.itemName,
       grid_position: { row, col, row_span: 1, col_span: 1 },
       ports: drag.zoneType === "port_group"

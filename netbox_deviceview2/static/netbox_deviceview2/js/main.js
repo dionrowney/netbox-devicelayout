@@ -76,7 +76,7 @@ function createLayoutWrapperEl(objectType, objectPk) {
 // View mode
 // ---------------------------------------------------------------------------
 
-function initViewMode(col, layouts, subLayouts, connections, highlightPort) {
+function initViewMode(col, layouts, subLayouts, connections, deviceBays, highlightPort) {
   if (layouts.length === 0) {
     const msg = document.createElement("div");
     msg.className = "dv2-empty-message";
@@ -89,7 +89,7 @@ function initViewMode(col, layouts, subLayouts, connections, highlightPort) {
     const panelEl = createPanelEl();
     col.appendChild(panelEl);
     const gridEl = panelEl.querySelector(".dv2-grid");
-    render(panelEl, gridEl, layout, { editable: false, connections, subLayouts });
+    render(panelEl, gridEl, layout, { editable: false, connections, subLayouts, deviceBays });
 
     if (highlightPort) {
       const portEl = gridEl.querySelector(`[data-port-name="${CSS.escape(highlightPort)}"]`);
@@ -179,6 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const layouts       = layoutsData.layouts;
   const subLayouts    = safeParseJSON(col.dataset.subLayouts, {});
   const connections   = safeParseJSON(col.dataset.connections, {});
+  const deviceBays    = safeParseJSON(col.dataset.deviceBays, {});
   const editMode      = col.dataset.edit === "true";
   const highlightPort = col.dataset.highlightPort || "";
   const objectType    = col.dataset.objectType;
@@ -187,6 +188,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (editMode) {
     initEditMode(col, layouts, subLayouts, objectType, objectPk);
   } else {
-    initViewMode(col, layouts, subLayouts, connections, highlightPort);
+    initViewMode(col, layouts, subLayouts, connections, deviceBays, highlightPort);
   }
 });

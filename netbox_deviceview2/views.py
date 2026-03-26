@@ -10,7 +10,8 @@ from netbox.views.generic import ObjectView
 from utilities.views import ViewTab, register_model_view
 
 from dcim.models import (
-    Device, DeviceType, FrontPort, FrontPortTemplate, Interface,
+    Device, DeviceBay, DeviceBayTemplate, DeviceType,
+    FrontPort, FrontPortTemplate, Interface,
     InterfaceTemplate, Module, ModuleType, RearPort, RearPortTemplate,
 )
 
@@ -221,7 +222,30 @@ def _build_device_layout_data(device):
                         "peers": info["peers"],
                     }
 
-    return layouts_data, sub_layouts, connections
+    # Device bays: installed device name + URL, keyed by zone ID
+    device_bays_info = {}
+    installed_by_device_bay_name = {
+        bay.name: bay
+        for bay in DeviceBay.objects.filter(
+            device=device
+        ).select_related("installed_device")
+    }
+    for zone in all_zones:
+        if zone.get("type") != "device_bay":
+            continue
+        bay_name = zone.get("netbox_name") or zone.get("label")
+        if not bay_name:
+            continue
+        bay = installed_by_device_bay_name.get(bay_name)
+        if not bay or not bay.installed_device:
+            continue
+        dev = bay.installed_device
+        device_bays_info[zone["id"]] = {
+            "device_name": dev.name,
+            "device_url": dev.get_absolute_url(),
+        }
+
+    return layouts_data, sub_layouts, connections, device_bays_info
 
 
 # ---------------------------------------------------------------------------
@@ -245,6 +269,7 @@ class DeviceTypeLayoutView(ObjectView):
             "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps({}),
             "connections_json": json.dumps({}),
+            "device_bays_json": json.dumps({}),
             "highlight_port": "",
             "edit_mode": request.GET.get("edit") == "1",
             "can_edit": request.user.has_perm("dcim.change_devicetype"),
@@ -275,6 +300,7 @@ class ModuleTypeLayoutView(ObjectView):
             "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps({}),
             "connections_json": json.dumps({}),
+            "device_bays_json": json.dumps({}),
             "highlight_port": "",
             "edit_mode": request.GET.get("edit") == "1",
             "can_edit": request.user.has_perm("dcim.change_moduletype"),
@@ -295,7 +321,7 @@ class DeviceLayoutView(ObjectView):
     template_name = "netbox_deviceview2/device_layout.html"
 
     def get_extra_context(self, request, instance):
-        layouts_data, sub_layouts, connections = _build_device_layout_data(instance)
+        layouts_data, sub_layouts, connections, device_bays_info = _build_device_layout_data(instance)
         save_url = reverse(
             "plugins:netbox_deviceview2:device_layout_save",
             kwargs={"pk": instance.pk},
@@ -304,6 +330,7 @@ class DeviceLayoutView(ObjectView):
             "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps(sub_layouts),
             "connections_json": json.dumps(connections),
+            "device_bays_json": json.dumps(device_bays_info),
             "highlight_port": "",
             "edit_mode": request.GET.get("edit") == "1",
             "can_edit": request.user.has_perm("dcim.change_device"),
@@ -328,6 +355,7 @@ class _PortLayoutViewBase(ObjectView):
                 "layout_json": json.dumps({"layouts": []}),
                 "sub_layouts_json": json.dumps({}),
                 "connections_json": json.dumps({}),
+                "device_bays_json": json.dumps({}),
                 "highlight_port": "",
                 "edit_mode": False,
                 "can_edit": False,
@@ -335,11 +363,12 @@ class _PortLayoutViewBase(ObjectView):
                 "object_type": "device",
                 "object_pk": 0,
             }
-        layouts_data, sub_layouts, connections = _build_device_layout_data(device)
+        layouts_data, sub_layouts, connections, device_bays_info = _build_device_layout_data(device)
         return {
             "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps(sub_layouts),
             "connections_json": json.dumps(connections),
+            "device_bays_json": json.dumps(device_bays_info),
             "highlight_port": instance.name,
             "edit_mode": False,
             "can_edit": False,

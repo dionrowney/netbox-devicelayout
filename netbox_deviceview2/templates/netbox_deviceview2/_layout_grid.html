@@ -36,6 +36,9 @@ Context vars:
       <option value="interface">Interfaces</option>
       <option value="front-port">Front Ports</option>
       <option value="rear-port">Rear Ports</option>
+      {% if object_type != "module_type" %}
+      <option value="device-bay">Device Bays</option>
+      {% endif %}
       {% if object_type == "device" %}
       <option value="console-port">Console Ports</option>
       <option value="console-server-port">Console Server Ports</option>
@@ -62,6 +65,7 @@ Context vars:
        data-layouts="{{ layout_json }}"
        data-sub-layouts="{{ sub_layouts_json }}"
        data-connections="{{ connections_json }}"
+       data-device-bays="{{ device_bays_json }}"
        data-edit="{{ edit_mode|yesno:'true,false' }}"
        data-highlight-port="{{ highlight_port|default:'' }}"
        data-object-type="{{ object_type }}"
@@ -95,6 +99,7 @@ Context vars:
         <label class="form-label" for="dv2-modal-type">Type</label>
         <select id="dv2-modal-type" class="dv2-select">
           <option value="module_bay">Module Bay</option>
+          <option value="device_bay">Device Bay</option>
           <option value="port_group">Port Group</option>
           <option value="power">Power</option>
           <option value="custom">Custom</option>
