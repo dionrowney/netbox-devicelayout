@@ -110,14 +110,19 @@ Save views are in `urls.py` and land in the `plugins:netbox_deviceview2:` namesp
 
 The editor fetches templates via the NetBox REST API:
 
-| Sidebar type | API endpoint |
-|---|---|
-| Module Bays | `/api/dcim/module-bay-templates/?device_type_id=<pk>` |
-| Interfaces | `/api/dcim/interface-templates/?device_type_id=<pk>` |
-| Front Ports | `/api/dcim/front-port-templates/?device_type_id=<pk>` |
-| Rear Ports | `/api/dcim/rear-port-templates/?device_type_id=<pk>` |
+| Sidebar type | API endpoint | Device type | Module type |
+|---|---|---|---|
+| Module Bays | `/api/dcim/module-bay-templates/` | ✓ | ✓ |
+| Interfaces | `/api/dcim/interface-templates/` | ✓ | ✓ |
+| Front Ports | `/api/dcim/front-port-templates/` | ✓ | ✓ |
+| Rear Ports | `/api/dcim/rear-port-templates/` | ✓ | ✓ |
+| Console Ports | `/api/dcim/console-port-templates/` | ✓ | — |
+| Console Server Ports | `/api/dcim/console-server-port-templates/` | ✓ | — |
+| Power Ports | `/api/dcim/power-port-templates/` | ✓ | — |
+| Power Outlets | `/api/dcim/power-outlet-templates/` | ✓ | — |
 
-For module types, the param is `module_type_id` (not `moduletype_id`).
+Filter param: `device_type_id=<pk>` for device types, `module_type_id=<pk>` for module types.
+Console/power types are device-type only — they are not shown in the sidebar for module type layouts.
 
 **Display logic for items:**
 - Sidebar list always shows `item.name`

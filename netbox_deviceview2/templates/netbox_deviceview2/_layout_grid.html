@@ -35,7 +35,13 @@ Context vars:
       <option value="module-bay">Module Bays</option>
       <option value="interface">Interfaces</option>
       <option value="front-port">Front Ports</option>
-      <option value="rear-port">Back Ports</option>
+      <option value="rear-port">Rear Ports</option>
+      {% if object_type == "device" %}
+      <option value="console-port">Console Ports</option>
+      <option value="console-server-port">Console Server Ports</option>
+      <option value="power-port">Power Ports</option>
+      <option value="power-outlet">Power Outlets</option>
+      {% endif %}
     </select>
 
     <input id="dv2-sidebar-filter" type="search" class="dv2-sidebar-filter"

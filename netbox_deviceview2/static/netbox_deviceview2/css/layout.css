@@ -300,10 +300,14 @@
   border-radius: 2px;
   flex-shrink: 0;
 }
-.dv2-dot-module-bay { background: #2a5aaa; }
-.dv2-dot-interface  { background: #3a4090; }
-.dv2-dot-front-port { background: #2a7a6a; }
-.dv2-dot-rear-port  { background: #6a3a90; }
+.dv2-dot-module-bay          { background: #2a5aaa; }
+.dv2-dot-interface           { background: #3a4090; }
+.dv2-dot-front-port          { background: #2a7a6a; }
+.dv2-dot-rear-port           { background: #6a3a90; }
+.dv2-dot-console-port        { background: #7a5a20; }
+.dv2-dot-console-server-port { background: #9a6a10; }
+.dv2-dot-power-port          { background: #8a3020; }
+.dv2-dot-power-outlet        { background: #7a2050; }
 
 .dv2-sidebar-item-name {
   font-size: 0.78rem;

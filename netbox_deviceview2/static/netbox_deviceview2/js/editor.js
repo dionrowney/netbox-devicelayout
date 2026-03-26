@@ -32,10 +32,14 @@ const SIDEBAR_TYPES = {
 };
 
 const DEVICE_SIDEBAR_TYPES = {
-  "module-bay":  { apiSlug: "module-bays",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay" },
-  "interface":   { apiSlug: "interfaces",   zoneType: "port_group",  dotClass: "dv2-dot-interface"  },
-  "front-port":  { apiSlug: "front-ports",  zoneType: "port_group",  dotClass: "dv2-dot-front-port" },
-  "rear-port":   { apiSlug: "rear-ports",   zoneType: "port_group",  dotClass: "dv2-dot-rear-port"  },
+  "module-bay":          { apiSlug: "module-bays",               zoneType: "module_bay",  dotClass: "dv2-dot-module-bay"          },
+  "interface":           { apiSlug: "interfaces",                zoneType: "port_group",  dotClass: "dv2-dot-interface"           },
+  "front-port":          { apiSlug: "front-ports",               zoneType: "port_group",  dotClass: "dv2-dot-front-port"          },
+  "rear-port":           { apiSlug: "rear-ports",                zoneType: "port_group",  dotClass: "dv2-dot-rear-port"           },
+  "console-port":        { apiSlug: "console-ports",             zoneType: "port_group",  dotClass: "dv2-dot-console-port"        },
+  "console-server-port": { apiSlug: "console-server-ports",      zoneType: "port_group",  dotClass: "dv2-dot-console-server-port" },
+  "power-port":          { apiSlug: "power-ports",               zoneType: "port_group",  dotClass: "dv2-dot-power-port"          },
+  "power-outlet":        { apiSlug: "power-outlets",             zoneType: "port_group",  dotClass: "dv2-dot-power-outlet"        },
 };
 
 export class LayoutEditor {
@@ -176,7 +180,9 @@ export class LayoutEditor {
       if (sidebarType === "module-bay" && zone.type === "module_bay" && zone.netbox_id) {
         ids.add(String(zone.netbox_id));
       } else if (
-        (sidebarType === "interface" || sidebarType === "front-port" || sidebarType === "rear-port") &&
+        (sidebarType === "interface" || sidebarType === "front-port" || sidebarType === "rear-port" ||
+         sidebarType === "console-port" || sidebarType === "console-server-port" ||
+         sidebarType === "power-port" || sidebarType === "power-outlet") &&
         zone.type === "port_group"
       ) {
         for (const p of zone.ports || []) ids.add(String(p.id));
