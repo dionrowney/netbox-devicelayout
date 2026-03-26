@@ -37,6 +37,44 @@ function createPanelEl() {
   return panel;
 }
 
+/** Wrap a view-mode panel with a small per-panel toolbar (Fit button). */
+function createViewPanelWrapper(panelEl) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "dv2-view-panel-wrapper";
+
+  const ptb = document.createElement("div");
+  ptb.className = "dv2-view-panel-toolbar";
+
+  const fitBtn = document.createElement("button");
+  fitBtn.className = "dv2-fit-btn btn btn-sm btn-outline-secondary";
+  fitBtn.textContent = "Fit";
+  fitBtn.title = "Zoom to fit window width";
+  ptb.appendChild(fitBtn);
+
+  fitBtn.addEventListener("click", () => {
+    if (panelEl.dataset.fitted === "true") {
+      panelEl.style.zoom = "";
+      panelEl.dataset.fitted = "false";
+      fitBtn.textContent = "Fit";
+      fitBtn.classList.remove("active");
+    } else {
+      panelEl.style.zoom = "";
+      const available = panelEl.clientWidth;
+      const natural   = panelEl.scrollWidth;
+      if (natural > available && available > 0) {
+        panelEl.style.zoom = available / natural;
+        panelEl.dataset.fitted = "true";
+        fitBtn.textContent = "1:1";
+        fitBtn.classList.add("active");
+      }
+    }
+  });
+
+  wrapper.appendChild(ptb);
+  wrapper.appendChild(panelEl);
+  return wrapper;
+}
+
 function createLayoutWrapperEl(objectType, objectPk) {
   const wrapper = document.createElement("div");
   wrapper.className = "dv2-layout-wrapper";
@@ -49,6 +87,11 @@ function createLayoutWrapperEl(objectType, objectPk) {
     `<input type="number" class="dv2-rows-input form-control form-control-sm" style="width:70px" min="1" max="20" value="2">` +
     `<label class="mb-0 fw-semibold small">Cols:</label>` +
     `<input type="number" class="dv2-cols-input form-control form-control-sm" style="width:70px" min="1" max="48" value="6">` +
+    `<label class="mb-0 fw-semibold small">Col&nbsp;W:</label>` +
+    `<input type="number" class="dv2-col-width-input form-control form-control-sm" style="width:70px" min="20" max="300" value="80" title="Minimum column width (px)">` +
+    `<label class="mb-0 fw-semibold small">Row&nbsp;H:</label>` +
+    `<input type="number" class="dv2-row-height-input form-control form-control-sm" style="width:70px" min="20" max="300" value="88" title="Minimum row height (px)">` +
+    `<button class="dv2-fit-btn btn btn-sm btn-outline-secondary" title="Zoom to fit window width">Fit</button>` +
     `<button class="dv2-undo-btn btn btn-sm btn-outline-secondary" disabled>&#8630; Undo</button>` +
     `<button class="dv2-clear-btn btn btn-sm btn-outline-danger">Clear</button>` +
     `<button class="dv2-delete-layout-btn btn btn-sm btn-outline-secondary ms-auto">&#128465; Delete Layout</button>`;
@@ -85,16 +128,30 @@ function initViewMode(col, layouts, subLayouts, connections, deviceBays, highlig
     return;
   }
 
+  function viewOptsFor(layout) {
+    return {
+      editable: false,
+      connections,
+      subLayouts,
+      deviceBays,
+      colMinWidth:  layout.grid?.col_min_width  ?? 80,
+      rowMinHeight: layout.grid?.row_min_height ?? 88,
+    };
+  }
+
+  function applyHighlight(gridEl) {
+    if (!highlightPort) return;
+    const portEl = gridEl.querySelector(`[data-port-name="${CSS.escape(highlightPort)}"]`);
+    if (portEl) portEl.classList.add("dv2-highlight");
+  }
+
   for (const layout of layouts) {
     const panelEl = createPanelEl();
-    col.appendChild(panelEl);
+    const wrapper = createViewPanelWrapper(panelEl);
+    col.appendChild(wrapper);
     const gridEl = panelEl.querySelector(".dv2-grid");
-    render(panelEl, gridEl, layout, { editable: false, connections, subLayouts, deviceBays });
-
-    if (highlightPort) {
-      const portEl = gridEl.querySelector(`[data-port-name="${CSS.escape(highlightPort)}"]`);
-      if (portEl) portEl.classList.add("dv2-highlight");
-    }
+    render(panelEl, gridEl, layout, viewOptsFor(layout));
+    applyHighlight(gridEl);
   }
 }
 
@@ -124,6 +181,29 @@ function initEditMode(col, layouts, subLayouts, objectType, objectPk) {
 
     // Track which editor was last interacted with (for Ctrl+Z scoping)
     wrapperEl.addEventListener("pointerdown", () => { lastActiveEditor = editor; }, true);
+
+    // Fit button — zoom panel to fit available width
+    const fitBtn = wrapperEl.querySelector(".dv2-fit-btn");
+    if (fitBtn) {
+      fitBtn.addEventListener("click", () => {
+        if (panelEl.dataset.fitted === "true") {
+          panelEl.style.zoom = "";
+          panelEl.dataset.fitted = "false";
+          fitBtn.textContent = "Fit";
+          fitBtn.classList.remove("active");
+        } else {
+          panelEl.style.zoom = "";
+          const available = panelEl.clientWidth;
+          const natural   = panelEl.scrollWidth;
+          if (natural > available && available > 0) {
+            panelEl.style.zoom = available / natural;
+            panelEl.dataset.fitted = "true";
+            fitBtn.textContent = "1:1";
+            fitBtn.classList.add("active");
+          }
+        }
+      });
+    }
 
     // Delete panel button
     wrapperEl.querySelector(".dv2-delete-layout-btn")?.addEventListener("click", () => {

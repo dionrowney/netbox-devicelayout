@@ -298,9 +298,11 @@ export function render(panelEl, gridEl, layoutData, opts = {}) {
   const cols = grid.cols || 6;
   const zones = layoutData.zones || [];
 
-  // Apply grid CSS
-  gridEl.style.gridTemplateColumns = `repeat(${cols}, minmax(80px, 1fr))`;
-  gridEl.style.gridTemplateRows = `repeat(${rows}, minmax(88px, 1fr))`;
+  // Apply grid CSS — min sizes are configurable via opts
+  const colMinWidth  = opts.colMinWidth  ?? 80;
+  const rowMinHeight = opts.rowMinHeight ?? 88;
+  gridEl.style.gridTemplateColumns = `repeat(${cols}, minmax(${colMinWidth}px, 1fr))`;
+  gridEl.style.gridTemplateRows    = `repeat(${rows}, minmax(${rowMinHeight}px, 1fr))`;
 
   // Render empty cells for unoccupied positions
   for (let r = 1; r <= rows; r++) {

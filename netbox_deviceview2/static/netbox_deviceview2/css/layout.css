@@ -346,6 +346,27 @@
   gap: 6px;
 }
 
+/* ---- Per-panel wrapper (view mode) ------------------------------------- */
+.dv2-view-panel-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- Per-panel toolbar (view mode) ------------------------------------- */
+.dv2-view-panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- Fit button active state ------------------------------------------- */
+.dv2-fit-btn.active {
+  background: var(--bs-primary, #0d6efd);
+  color: #fff;
+  border-color: var(--bs-primary, #0d6efd);
+}
+
 /* ---- Per-panel mini-toolbar (edit mode) -------------------------------- */
 .dv2-layout-mini-toolbar {
   padding: 4px 6px;
@@ -384,7 +405,6 @@
 .dv2-empty-cell {
   border: 2px dashed var(--dv2-cell-border);
   border-radius: 5px;
-  min-height: 88px;
   box-sizing: border-box;
   position: relative;
   transition: border-color 0.15s, background 0.15s;
@@ -425,7 +445,6 @@
   gap: 6px;
   box-sizing: border-box;
   position: relative;
-  min-height: 88px;
   transition: outline 0.1s;
 }
 .dv2-zone[data-type="module_bay"] { background: var(--dv2-mb-bg); border: 1px solid var(--dv2-mb-bdr); }

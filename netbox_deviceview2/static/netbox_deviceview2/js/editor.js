@@ -98,9 +98,13 @@ export class LayoutEditor {
   // -------------------------------------------------------------------------
 
   _renderAll() {
+    const colMinWidth  = this.layout.grid.col_min_width  ?? 80;
+    const rowMinHeight = this.layout.grid.row_min_height ?? 88;
     render(this.panelEl, this.gridEl, this.layout, {
       editable: true,
       subLayouts: this.subLayouts,
+      colMinWidth,
+      rowMinHeight,
     });
     this._bindGridEvents();
     this._bindZoneEvents();
@@ -486,8 +490,10 @@ export class LayoutEditor {
   _renderGridControls() {
     const { cols, rows } = this.layout.grid;
     // Must match renderer.js render() exactly so controls align with grid cells.
-    const colTemplate = `repeat(${cols}, minmax(80px, 1fr))`;
-    const rowTemplate = `repeat(${rows}, minmax(88px, 1fr))`;
+    const colMinWidth  = this.layout.grid.col_min_width  ?? 80;
+    const rowMinHeight = this.layout.grid.row_min_height ?? 88;
+    const colTemplate = `repeat(${cols}, minmax(${colMinWidth}px, 1fr))`;
+    const rowTemplate = `repeat(${rows}, minmax(${rowMinHeight}px, 1fr))`;
 
     // Col controls — same CSS Grid template as the main grid
     this._colControlsEl.innerHTML = "";
@@ -716,8 +722,10 @@ export class LayoutEditor {
   // -------------------------------------------------------------------------
 
   _bindDimInputs() {
-    const ri = this.wrapperEl.querySelector(".dv2-rows-input");
-    const ci = this.wrapperEl.querySelector(".dv2-cols-input");
+    const ri  = this.wrapperEl.querySelector(".dv2-rows-input");
+    const ci  = this.wrapperEl.querySelector(".dv2-cols-input");
+    const cwi = this.wrapperEl.querySelector(".dv2-col-width-input");
+    const rhi = this.wrapperEl.querySelector(".dv2-row-height-input");
     if (!ri || !ci) return;
     const apply = () => {
       const nr = Math.max(1, Math.min(20, parseInt(ri.value, 10) || 2));
@@ -742,13 +750,30 @@ export class LayoutEditor {
     };
     ri.addEventListener("change", apply);
     ci.addEventListener("change", apply);
+    // Size inputs persist in layout.grid so they are saved and used in view mode
+    cwi?.addEventListener("change", () => {
+      const v = Math.max(20, Math.min(300, parseInt(cwi.value, 10) || 80));
+      cwi.value = v;
+      this.layout.grid.col_min_width = v;
+      this._renderAll();
+    });
+    rhi?.addEventListener("change", () => {
+      const v = Math.max(20, Math.min(300, parseInt(rhi.value, 10) || 88));
+      rhi.value = v;
+      this.layout.grid.row_min_height = v;
+      this._renderAll();
+    });
   }
 
   _syncDimInputs() {
-    const ri = this.wrapperEl.querySelector(".dv2-rows-input");
-    const ci = this.wrapperEl.querySelector(".dv2-cols-input");
-    if (ri) ri.value = this.layout.grid.rows;
-    if (ci) ci.value = this.layout.grid.cols;
+    const ri  = this.wrapperEl.querySelector(".dv2-rows-input");
+    const ci  = this.wrapperEl.querySelector(".dv2-cols-input");
+    const cwi = this.wrapperEl.querySelector(".dv2-col-width-input");
+    const rhi = this.wrapperEl.querySelector(".dv2-row-height-input");
+    if (ri)  ri.value  = this.layout.grid.rows;
+    if (ci)  ci.value  = this.layout.grid.cols;
+    if (cwi) cwi.value = this.layout.grid.col_min_width  ?? 80;
+    if (rhi) rhi.value = this.layout.grid.row_min_height ?? 88;
   }
 
   // -------------------------------------------------------------------------
