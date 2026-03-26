@@ -66,4 +66,32 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Module Type Layouts",
             },
         ),
+        migrations.CreateModel(
+            name="DeviceLayout",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "device",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="deviceview2_layout",
+                        to="dcim.device",
+                    ),
+                ),
+                ("layout", models.JSONField(blank=True, default=dict)),
+                ("modified", models.DateTimeField(auto_now=True)),
+            ],
+            options={
+                "verbose_name": "Device Layout",
+                "verbose_name_plural": "Device Layouts",
+            },
+        ),
     ]
