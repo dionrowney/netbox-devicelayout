@@ -2,7 +2,7 @@
 
 ## What this is
 
-A NetBox 4.x plugin that adds a **Layout** tab to Device Type and Module Type detail pages. The tab shows a physical panel view (grid of zones representing module bays, interfaces, front/rear ports) with a WYSIWYG drag-and-drop editor.
+A NetBox 4.x plugin that adds a **Layout** tab to Device Type, Module Type, Device, Interface, FrontPort, and RearPort detail pages. The tab shows a physical panel view (grid of zones representing module bays, device bays, interfaces, front/rear ports, console/power ports) with a WYSIWYG drag-and-drop editor.
 
 ## Environment
 
@@ -47,6 +47,8 @@ netbox_deviceview2/
   templates/netbox_deviceview2/
     devicetype_layout.html  Extends NetBox base, includes _layout_grid.html
     moduletype_layout.html  Same for module types
+    device_layout.html      Same for devices
+    port_layout.html        Same for Interface/FrontPort/RearPort (view-only, highlights port)
     _layout_grid.html       Shared grid/editor HTML (toolbar, sidebar, panel, modal)
   static/netbox_deviceview2/
     css/layout.css          All styles (theme-aware via CSS custom properties)
@@ -86,7 +88,7 @@ netbox_deviceview2/
 }
 ```
 
-Zone types: `module_bay`, `port_group`, `power`, `custom`
+Zone types: `module_bay`, `device_bay`, `port_group`, `power`, `custom`
 
 ## URL patterns
 
@@ -94,41 +96,59 @@ Zone types: `module_bay`, `port_group`, `power`, `custom`
 |-----|------|--------|
 | `/dcim/device-types/<pk>/layout/` | `DeviceTypeLayoutView` | GET (tab) |
 | `/dcim/module-types/<pk>/layout/` | `ModuleTypeLayoutView` | GET (tab) |
+| `/dcim/devices/<pk>/layout/` | `DeviceLayoutView` | GET (tab) |
+| `/dcim/interfaces/<pk>/layout/` | `InterfaceLayoutView` | GET (tab, view-only) |
+| `/dcim/front-ports/<pk>/layout/` | `FrontPortLayoutView` | GET (tab, view-only) |
+| `/dcim/rear-ports/<pk>/layout/` | `RearPortLayoutView` | GET (tab, view-only) |
 | `/plugins/netbox-deviceview2/device-types/<pk>/layout/save/` | `DeviceTypeLayoutSaveView` | POST |
 | `/plugins/netbox-deviceview2/module-types/<pk>/layout/save/` | `ModuleTypeLayoutSaveView` | POST |
+| `/plugins/netbox-deviceview2/devices/<pk>/layout/save/` | `DeviceLayoutSaveView` | POST |
 
 Tab views are registered with `@register_model_view` and land in the `dcim:` URL namespace.
 Save views are in `urls.py` and land in the `plugins:netbox_deviceview2:` namespace.
 
 ## Permissions
 
-- View layout tab: `dcim.view_devicetype` / `dcim.view_moduletype`
-- Show Edit button: `dcim.change_devicetype` / `dcim.change_moduletype`
+- View layout tab: `dcim.view_devicetype` / `dcim.view_moduletype` / `dcim.view_device` / `dcim.view_interface` etc.
+- Show Edit button: `dcim.change_devicetype` / `dcim.change_moduletype` / `dcim.change_device`
 - POST to save view: same change permissions — do NOT use `netbox_deviceview2.change_*` (those are never assigned)
+- Port layout tabs (Interface/FrontPort/RearPort) are always view-only — no edit mode
 
 ## NetBox API — sidebar items
 
 The editor fetches templates via the NetBox REST API:
 
-| Sidebar type | API endpoint | Device type | Module type |
-|---|---|---|---|
-| Module Bays | `/api/dcim/module-bay-templates/` | ✓ | ✓ |
-| Interfaces | `/api/dcim/interface-templates/` | ✓ | ✓ |
-| Front Ports | `/api/dcim/front-port-templates/` | ✓ | ✓ |
-| Rear Ports | `/api/dcim/rear-port-templates/` | ✓ | ✓ |
-| Console Ports | `/api/dcim/console-port-templates/` | ✓ | — |
-| Console Server Ports | `/api/dcim/console-server-port-templates/` | ✓ | — |
-| Power Ports | `/api/dcim/power-port-templates/` | ✓ | — |
-| Power Outlets | `/api/dcim/power-outlet-templates/` | ✓ | — |
+| Sidebar type | API endpoint (template) | API endpoint (device) | Device type | Module type | Device |
+|---|---|---|---|---|---|
+| Module Bays | `module-bay-templates/` | `module-bays/` | ✓ | ✓ | ✓ |
+| Interfaces | `interface-templates/` | `interfaces/` | ✓ | ✓ | ✓ |
+| Front Ports | `front-port-templates/` | `front-ports/` | ✓ | ✓ | ✓ |
+| Rear Ports | `rear-port-templates/` | `rear-ports/` | ✓ | ✓ | ✓ |
+| Device Bays | `device-bay-templates/` | `device-bays/` | ✓ | — | ✓ |
+| Console Ports | `console-port-templates/` | `console-ports/` | ✓ | — | ✓ |
+| Console Server Ports | `console-server-port-templates/` | `console-server-ports/` | ✓ | — | ✓ |
+| Power Ports | `power-port-templates/` | `power-ports/` | ✓ | — | ✓ |
+| Power Outlets | `power-outlet-templates/` | `power-outlets/` | ✓ | — | ✓ |
 
-Filter param: `device_type_id=<pk>` for device types, `module_type_id=<pk>` for module types.
-Console/power types are device-type only — they are not shown in the sidebar for module type layouts.
+All under `/api/dcim/`. Filter param: `device_type_id=<pk>` for device types, `module_type_id=<pk>` for module types, `device_id=<pk>` for devices.
+
+Device Bays, Console/Power types not shown in sidebar for module types (`object_type == "module_type"`).
 
 **Display logic for items:**
 - Sidebar list always shows `item.name`
-- On drop → module bay label = `item.name`
-- On drop → interface/port label = `item.label` if set, else `item.display`
+- On drop → module bay / device bay label = `item.name`
+- On drop → interface/port label blank by default (user fills it in via edit modal)
 - `item.display` from the API is formatted as `"name (label)"` when a label exists — avoid using it directly when a label is set
+
+## Data flow — device view
+
+`_build_device_layout_data(device)` returns 4 values:
+1. `layouts_data` — multi-layout format `{"layouts": [...]}`
+2. `sub_layouts` — `{ zone_id: layout_obj }` for module bays with installed modules (matched by `module_bay.name == zone.netbox_name`)
+3. `connections` — `{ "zone_id:port_id": {connected, name, cable, peers} }` for device ports; `"parent_zone_id/sub_zone_id:port_id"` for module ports
+4. `device_bays_info` — `{ zone_id: {device_name, device_url} }` for device bays with installed devices (matched by `device_bay.name == zone.netbox_name`)
+
+All four are JSON-serialised and passed via `data-*` attributes on `#dv2-panels-column` to JS.
 
 ## CSS — theme support
 
@@ -142,10 +162,12 @@ Zone colours, panel background, sidebar, and modal all adapt to theme. Port boxe
 ## JS conventions
 
 - Vanilla ES modules (`type="module"`) — no build step, no npm
-- `main.js` reads `data-layout`, `data-sub-layouts`, `data-edit`, `data-object-type`, `data-object-pk` from `#dv2-grid`
-- Layout JSON is passed from Django to JS via `data-layout="{{ layout_json }}"` — use Django auto-escaping (NOT `|escapejs`, which breaks JSON in HTML attributes)
+- `main.js` reads `data-layouts`, `data-sub-layouts`, `data-connections`, `data-device-bays`, `data-edit`, `data-object-type`, `data-object-pk` from `#dv2-panels-column`
+- Layout JSON is passed from Django to JS via `data-layouts="{{ layout_json }}"` — use Django auto-escaping (NOT `|escapejs`, which breaks JSON in HTML attributes)
 - Bootstrap is NOT accessible as `window.bootstrap` in ES modules — use the custom CSS modal (`#dv2-zone-modal` with `dv2-modal-open` class)
 - NetBox's TomSelect hijacks `<select class="form-select">` — always use `class="dv2-select"` instead
+- `render()` in renderer.js accepts opts: `{ editable, connections, subLayouts, deviceBays }`
+- Port objects in zones: `{ id, label, name }` — all three fields must survive the modal edit cycle (`name` stored in hidden `.port-name-val` input)
 
 ## Known gotchas
 
@@ -154,3 +176,5 @@ Zone colours, panel background, sidebar, and modal all adapt to theme. Port boxe
 - After changing templates or Python: must restart the container. After JS/CSS only: collectstatic is enough.
 - `DeviceType` in NetBox 4.2 uses `modulebaytemplates` (not `modulebays`) as the related manager name.
 - Migration dependency must be `("dcim", "0001_squashed")` for NetBox 4.2.9.
+- Col/row insert+delete controls use absolute positioning on a `position:relative` wrapper — never a separate flex/grid container (alignment drifts at high column counts otherwise).
+- Interface/FrontPort/RearPort layout tabs show the parent device layout with the specific port highlighted in yellow (flashing) — they have no edit mode.
