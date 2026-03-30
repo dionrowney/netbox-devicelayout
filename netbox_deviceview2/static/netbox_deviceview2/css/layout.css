@@ -402,6 +402,10 @@
 }
 
 /* ---- Empty / unoccupied cells ------------------------------------------ */
+.dv2-empty-cell-view {
+  box-sizing: border-box;
+}
+
 .dv2-empty-cell {
   border: 2px dashed var(--dv2-cell-border);
   border-radius: 5px;

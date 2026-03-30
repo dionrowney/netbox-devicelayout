@@ -42,9 +42,9 @@ export function isOccupied(zones, row, col) {
 /**
  * Create a dashed empty-cell element for a given grid position.
  */
-export function createEmptyCellEl(row, col) {
+export function createEmptyCellEl(row, col, editable = false) {
   const el = document.createElement("div");
-  el.className = "dv2-empty-cell";
+  el.className = editable ? "dv2-empty-cell" : "dv2-empty-cell-view";
   el.dataset.row = row;
   el.dataset.col = col;
   el.style.gridColumn = `${col} / span 1`;
@@ -168,8 +168,11 @@ export function createZoneEl(zone, opts = {}) {
   } else if (zone.bg_color) {
     el.style.background = zone.bg_color;
   }
-  if (zone.no_border) {
+  const borderVal = zone.border_color ?? (zone.no_border ? "none" : null);
+  if (borderVal === "none") {
     el.style.border = "none";
+  } else if (borderVal) {
+    el.style.border = `1px solid ${borderVal}`;
   }
 
   if (editable) {
@@ -341,7 +344,7 @@ export function render(panelEl, gridEl, layoutData, opts = {}) {
   for (let r = 1; r <= rows; r++) {
     for (let c = 1; c <= cols; c++) {
       if (!isOccupied(zones, r, c)) {
-        gridEl.appendChild(createEmptyCellEl(r, c));
+        gridEl.appendChild(createEmptyCellEl(r, c, opts.editable));
       }
     }
   }

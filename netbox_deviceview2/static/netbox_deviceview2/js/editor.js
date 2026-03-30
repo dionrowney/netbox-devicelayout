@@ -25,11 +25,15 @@ let _activeModalEditor = null;
 
 // Maps sidebar dropdown value → API config
 const SIDEBAR_TYPES = {
-  "module-bay":  { apiSlug: "module-bay-templates",  zoneType: "module_bay",  dotClass: "dv2-dot-module-bay"  },
-  "interface":   { apiSlug: "interface-templates",   zoneType: "port_group",  dotClass: "dv2-dot-interface"   },
-  "front-port":  { apiSlug: "front-port-templates",  zoneType: "port_group",  dotClass: "dv2-dot-front-port"  },
-  "rear-port":   { apiSlug: "rear-port-templates",   zoneType: "port_group",  dotClass: "dv2-dot-rear-port"   },
-  "device-bay":  { apiSlug: "device-bay-templates",  zoneType: "device_bay",  dotClass: "dv2-dot-device-bay"  },
+  "module-bay":          { apiSlug: "module-bay-templates",          zoneType: "module_bay",  dotClass: "dv2-dot-module-bay"          },
+  "interface":           { apiSlug: "interface-templates",           zoneType: "port_group",  dotClass: "dv2-dot-interface"           },
+  "front-port":          { apiSlug: "front-port-templates",          zoneType: "port_group",  dotClass: "dv2-dot-front-port"          },
+  "rear-port":           { apiSlug: "rear-port-templates",           zoneType: "port_group",  dotClass: "dv2-dot-rear-port"           },
+  "device-bay":          { apiSlug: "device-bay-templates",          zoneType: "device_bay",  dotClass: "dv2-dot-device-bay"          },
+  "console-port":        { apiSlug: "console-port-templates",        zoneType: "port_group",  dotClass: "dv2-dot-console-port"        },
+  "console-server-port": { apiSlug: "console-server-port-templates", zoneType: "port_group",  dotClass: "dv2-dot-console-server-port" },
+  "power-port":          { apiSlug: "power-port-templates",          zoneType: "port_group",  dotClass: "dv2-dot-power-port"          },
+  "power-outlet":        { apiSlug: "power-outlet-templates",        zoneType: "port_group",  dotClass: "dv2-dot-power-outlet"        },
 };
 
 const DEVICE_SIDEBAR_TYPES = {
@@ -68,10 +72,11 @@ export class LayoutEditor {
         : { panel_label: "", grid: { rows: 2, cols: 6 }, zones: [] }
     );
 
-    this.history   = [];
-    this._resize   = null;
-    this._apiCache = {};
+    this.history    = [];
+    this._resize    = null;
+    this._apiCache  = {};
     this._modalZone = null;
+    this._modalIsNew = false;
   }
 
   init() {
@@ -303,7 +308,51 @@ export class LayoutEditor {
         }
         _drag = null;
       });
+
+      cell.addEventListener("click", () => {
+        if (_drag) return; // ignore clicks that are part of a drag
+        const row = parseInt(cell.dataset.row, 10);
+        const col = parseInt(cell.dataset.col, 10);
+        this._openCreateModal(row, col);
+      });
     });
+  }
+
+  _openCreateModal(row, col) {
+    _activeModalEditor = this;
+    this._modalZone = {
+      id:            uid(),
+      label:         "",
+      type:          "custom",
+      netbox_id:     null,
+      netbox_name:   "",
+      grid_position: { row, col, row_span: 1, col_span: 1 },
+      ports:         [],
+    };
+    this._modalIsNew = true;
+
+    document.getElementById("dv2-modal-label").value   = "";
+    document.getElementById("dv2-modal-type").value    = "custom";
+    document.getElementById("dv2-modal-colspan").value = 1;
+    document.getElementById("dv2-modal-rowspan").value = 1;
+
+    // Background — default
+    document.querySelectorAll(".dv2-bg-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+    document.querySelector('.dv2-bg-opt[data-bg=""]')?.classList.add("active", "btn-secondary");
+
+    // Border — default
+    document.querySelectorAll(".dv2-border-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+    document.querySelector('.dv2-border-opt[data-border=""]')?.classList.add("active", "btn-secondary");
+
+    document.getElementById("dv2-modal-ports-section").style.display = "none";
+    document.getElementById("dv2-modal-ports-list").innerHTML = "";
+
+    // Swap title and hide delete button in create mode
+    const header = document.querySelector("#dv2-zone-modal .dv2-modal-header span");
+    if (header) header.textContent = "Add Zone";
+    document.getElementById("dv2-modal-delete-btn").style.display = "none";
+
+    document.getElementById("dv2-zone-modal").classList.add("dv2-modal-open");
   }
 
   _createZoneFromSidebar(drag, row, col) {
@@ -319,6 +368,7 @@ export class LayoutEditor {
       ports: drag.zoneType === "port_group"
         ? [{ id: String(drag.itemId), label: drag.itemDisplay, name: drag.itemName }]
         : [],
+      ...(drag.zoneType === "port_group" && { bg_color: "none", border_color: "none" }),
     };
     this.layout.zones.push(zone);
     this._renderAll();
@@ -619,14 +669,15 @@ export class LayoutEditor {
 
   async _openEditModal(zone) {
     _activeModalEditor = this;
-    this._modalZone = zone;
+    this._modalZone  = zone;
+    this._modalIsNew = false;
 
     document.getElementById("dv2-modal-label").value   = zone.label || "";
     document.getElementById("dv2-modal-type").value    = zone.type  || "custom";
     document.getElementById("dv2-modal-colspan").value = zone.grid_position.col_span || 1;
     document.getElementById("dv2-modal-rowspan").value = zone.grid_position.row_span || 1;
 
-    // Appearance
+    // Background
     const bg = zone.bg_color ?? null;
     document.querySelectorAll(".dv2-bg-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
     if (bg === "none") {
@@ -637,7 +688,18 @@ export class LayoutEditor {
     } else {
       document.querySelector('.dv2-bg-opt[data-bg=""]')?.classList.add("active", "btn-secondary");
     }
-    document.getElementById("dv2-modal-no-border").checked = !!zone.no_border;
+
+    // Border
+    const border = zone.border_color ?? (zone.no_border ? "none" : null);
+    document.querySelectorAll(".dv2-border-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+    if (border === "none") {
+      document.querySelector('.dv2-border-opt[data-border="none"]')?.classList.add("active", "btn-secondary");
+    } else if (border) {
+      document.querySelector('.dv2-border-opt[data-border="custom"]')?.classList.add("active", "btn-secondary");
+      document.getElementById("dv2-modal-border-picker").value = border;
+    } else {
+      document.querySelector('.dv2-border-opt[data-border=""]')?.classList.add("active", "btn-secondary");
+    }
 
     const portsList = document.getElementById("dv2-modal-ports-list");
     portsList.innerHTML = "";
@@ -703,11 +765,25 @@ export class LayoutEditor {
         btn.classList.add("active", "btn-secondary");
       });
     });
-    // Clicking the color picker implicitly activates Custom
+    // Clicking the bg color picker implicitly activates Custom
     document.getElementById("dv2-modal-color-picker")
       ?.addEventListener("click", () => {
         document.querySelectorAll(".dv2-bg-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
         document.querySelector('.dv2-bg-opt[data-bg="custom"]')?.classList.add("active", "btn-secondary");
+      });
+
+    // Border option buttons
+    document.querySelectorAll(".dv2-border-opt").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".dv2-border-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+        btn.classList.add("active", "btn-secondary");
+      });
+    });
+    // Clicking the border color picker implicitly activates Custom
+    document.getElementById("dv2-modal-border-picker")
+      ?.addEventListener("click", () => {
+        document.querySelectorAll(".dv2-border-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+        document.querySelector('.dv2-border-opt[data-border="custom"]')?.classList.add("active", "btn-secondary");
       });
     document.getElementById("dv2-modal-save-btn")
       ?.addEventListener("click", () => _activeModalEditor?._saveModal());
@@ -722,14 +798,17 @@ export class LayoutEditor {
     const zone = this._modalZone;
     if (!zone) return;
     this._pushHistory();
+    if (this._modalIsNew) {
+      this.layout.zones.push(zone);
+    }
     zone.label = document.getElementById("dv2-modal-label").value.trim();
     zone.type  = document.getElementById("dv2-modal-type").value;
     zone.grid_position.col_span = Math.max(1, parseInt(document.getElementById("dv2-modal-colspan").value, 10) || 1);
     zone.grid_position.row_span = Math.max(1, parseInt(document.getElementById("dv2-modal-rowspan").value, 10) || 1);
 
-    // Appearance
-    const activeBtn = document.querySelector(".dv2-bg-opt.active");
-    const bgVal = activeBtn?.dataset.bg ?? "";
+    // Background
+    const activeBg = document.querySelector(".dv2-bg-opt.active");
+    const bgVal = activeBg?.dataset.bg ?? "";
     if (bgVal === "custom") {
       zone.bg_color = document.getElementById("dv2-modal-color-picker").value;
     } else if (bgVal === "none") {
@@ -737,8 +816,18 @@ export class LayoutEditor {
     } else {
       delete zone.bg_color;
     }
-    const noBorder = document.getElementById("dv2-modal-no-border").checked;
-    if (noBorder) { zone.no_border = true; } else { delete zone.no_border; }
+
+    // Border
+    const activeBorder = document.querySelector(".dv2-border-opt.active");
+    const borderVal = activeBorder?.dataset.border ?? "";
+    if (borderVal === "custom") {
+      zone.border_color = document.getElementById("dv2-modal-border-picker").value;
+    } else if (borderVal === "none") {
+      zone.border_color = "none";
+    } else {
+      delete zone.border_color;
+    }
+    delete zone.no_border; // migrate away from old field
 
     const ports = [];
     document.querySelectorAll("#dv2-modal-ports-list .dv2-modal-port-row").forEach((row) => {
@@ -754,7 +843,13 @@ export class LayoutEditor {
 
   _closeModal() {
     document.getElementById("dv2-zone-modal")?.classList.remove("dv2-modal-open");
+    // Restore edit-mode title and delete button visibility
+    const header = document.querySelector("#dv2-zone-modal .dv2-modal-header span");
+    if (header) header.textContent = "Edit Zone";
+    const delBtn = document.getElementById("dv2-modal-delete-btn");
+    if (delBtn) delBtn.style.display = "";
     this._modalZone = null;
+    this._modalIsNew = false;
   }
 
   // -------------------------------------------------------------------------

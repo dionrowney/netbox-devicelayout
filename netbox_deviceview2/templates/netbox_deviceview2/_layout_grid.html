@@ -8,9 +8,8 @@ Context vars:
 {# ---- Toolbar ------------------------------------------------------------ #}
 <div class="dv2-toolbar d-flex align-items-center gap-2 mb-2 flex-wrap">
   {% if edit_mode %}
-    <span class="badge bg-warning text-dark">Editing</span>
-    <button id="dv2-add-layout-btn" class="btn btn-sm btn-outline-secondary">+ Add Layout</button>
-    <button id="dv2-save-btn" class="btn btn-sm btn-primary ms-auto">
+    <button id="dv2-add-layout-btn" class="btn btn-sm btn-outline-secondary ms-auto">+ Add Layout</button>
+    <button id="dv2-save-btn" class="btn btn-sm btn-primary">
       <i class="mdi mdi-content-save"></i> Save Layout
     </button>
     <a href="?" class="btn btn-sm btn-outline-secondary">Cancel</a>
@@ -39,7 +38,7 @@ Context vars:
       {% if object_type != "module_type" %}
       <option value="device-bay">Device Bays</option>
       {% endif %}
-      {% if object_type == "device" %}
+      {% if object_type != "module_type" %}
       <option value="console-port">Console Ports</option>
       <option value="console-server-port">Console Server Ports</option>
       <option value="power-port">Power Ports</option>
@@ -128,9 +127,12 @@ Context vars:
       </div>
 
       <div class="mb-3">
-        <div class="form-check">
-          <input type="checkbox" id="dv2-modal-no-border" class="form-check-input">
-          <label class="form-check-label" for="dv2-modal-no-border">Hide border</label>
+        <label class="form-label">Border</label>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <button type="button" class="dv2-border-opt btn btn-sm btn-outline-secondary" data-border="">Default</button>
+          <button type="button" class="dv2-border-opt btn btn-sm btn-outline-secondary" data-border="none">None</button>
+          <button type="button" class="dv2-border-opt btn btn-sm btn-outline-secondary" data-border="custom">Custom</button>
+          <input type="color" id="dv2-modal-border-picker" class="dv2-color-picker" value="#4a7acc" title="Pick border color">
         </div>
       </div>
 
