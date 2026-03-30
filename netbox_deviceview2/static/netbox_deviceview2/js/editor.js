@@ -626,6 +626,19 @@ export class LayoutEditor {
     document.getElementById("dv2-modal-colspan").value = zone.grid_position.col_span || 1;
     document.getElementById("dv2-modal-rowspan").value = zone.grid_position.row_span || 1;
 
+    // Appearance
+    const bg = zone.bg_color ?? null;
+    document.querySelectorAll(".dv2-bg-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+    if (bg === "none") {
+      document.querySelector('.dv2-bg-opt[data-bg="none"]')?.classList.add("active", "btn-secondary");
+    } else if (bg) {
+      document.querySelector('.dv2-bg-opt[data-bg="custom"]')?.classList.add("active", "btn-secondary");
+      document.getElementById("dv2-modal-color-picker").value = bg;
+    } else {
+      document.querySelector('.dv2-bg-opt[data-bg=""]')?.classList.add("active", "btn-secondary");
+    }
+    document.getElementById("dv2-modal-no-border").checked = !!zone.no_border;
+
     const portsList = document.getElementById("dv2-modal-ports-list");
     portsList.innerHTML = "";
     for (const p of zone.ports || []) {
@@ -682,6 +695,20 @@ export class LayoutEditor {
       });
     document.getElementById("dv2-modal-type")
       ?.addEventListener("change", () => _activeModalEditor?._modalUpdatePortsSection());
+
+    // Background option buttons
+    document.querySelectorAll(".dv2-bg-opt").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".dv2-bg-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+        btn.classList.add("active", "btn-secondary");
+      });
+    });
+    // Clicking the color picker implicitly activates Custom
+    document.getElementById("dv2-modal-color-picker")
+      ?.addEventListener("click", () => {
+        document.querySelectorAll(".dv2-bg-opt").forEach(b => b.classList.remove("active", "btn-secondary"));
+        document.querySelector('.dv2-bg-opt[data-bg="custom"]')?.classList.add("active", "btn-secondary");
+      });
     document.getElementById("dv2-modal-save-btn")
       ?.addEventListener("click", () => _activeModalEditor?._saveModal());
     document.getElementById("dv2-modal-delete-btn")
@@ -699,6 +726,19 @@ export class LayoutEditor {
     zone.type  = document.getElementById("dv2-modal-type").value;
     zone.grid_position.col_span = Math.max(1, parseInt(document.getElementById("dv2-modal-colspan").value, 10) || 1);
     zone.grid_position.row_span = Math.max(1, parseInt(document.getElementById("dv2-modal-rowspan").value, 10) || 1);
+
+    // Appearance
+    const activeBtn = document.querySelector(".dv2-bg-opt.active");
+    const bgVal = activeBtn?.dataset.bg ?? "";
+    if (bgVal === "custom") {
+      zone.bg_color = document.getElementById("dv2-modal-color-picker").value;
+    } else if (bgVal === "none") {
+      zone.bg_color = "none";
+    } else {
+      delete zone.bg_color;
+    }
+    const noBorder = document.getElementById("dv2-modal-no-border").checked;
+    if (noBorder) { zone.no_border = true; } else { delete zone.no_border; }
 
     const ports = [];
     document.querySelectorAll("#dv2-modal-ports-list .dv2-modal-port-row").forEach((row) => {

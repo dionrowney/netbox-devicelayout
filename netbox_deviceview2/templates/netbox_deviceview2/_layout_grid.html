@@ -117,6 +117,23 @@ Context vars:
         </div>
       </div>
 
+      <div class="mb-3">
+        <label class="form-label">Background</label>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <button type="button" class="dv2-bg-opt btn btn-sm btn-outline-secondary" data-bg="">Default</button>
+          <button type="button" class="dv2-bg-opt btn btn-sm btn-outline-secondary" data-bg="none">None</button>
+          <button type="button" class="dv2-bg-opt btn btn-sm btn-outline-secondary" data-bg="custom">Custom</button>
+          <input type="color" id="dv2-modal-color-picker" class="dv2-color-picker" value="#4a7acc" title="Pick background color">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <div class="form-check">
+          <input type="checkbox" id="dv2-modal-no-border" class="form-check-input">
+          <label class="form-check-label" for="dv2-modal-no-border">Hide border</label>
+        </div>
+      </div>
+
       {# Port list — shown when type = port_group #}
       <div id="dv2-modal-ports-section" style="display:none">
         <label class="form-label">Ports in this zone</label>

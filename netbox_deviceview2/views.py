@@ -135,6 +135,13 @@ def _build_device_layout_data(device):
             pass
 
     # Port info: cable + peers for every port on the device
+    def _fmt_endpoint(ep):
+        if hasattr(ep, "device") and hasattr(ep, "name"):
+            return f"{ep.device} / {ep.name}"
+        if hasattr(ep, "circuit"):
+            return f"Circuit {ep.circuit.cid}"
+        return str(ep)
+
     def _port_info(obj):
         cable_label = ""
         if obj.cable:
@@ -142,15 +149,18 @@ def _build_device_layout_data(device):
         peers = []
         try:
             for peer in (obj.link_peers or []):
-                if hasattr(peer, "device") and hasattr(peer, "name"):
-                    peers.append(f"{peer.device} / {peer.name}")
-                elif hasattr(peer, "circuit"):
-                    peers.append(f"Circuit {peer.circuit.cid}")
-                else:
-                    peers.append(str(peer))
+                peers.append(_fmt_endpoint(peer))
         except Exception:
             pass
-        return {"connected": obj.cable_id is not None, "cable": cable_label, "peers": peers}
+        remote = []
+        try:
+            for ep in (obj.connected_endpoints or []):
+                r = _fmt_endpoint(ep)
+                if r not in peers:
+                    remote.append(r)
+        except Exception:
+            pass
+        return {"connected": obj.cable_id is not None, "cable": cable_label, "peers": peers, "remote": remote}
 
     port_info = {}
     for iface in device.interfaces.select_related("cable").all():
@@ -160,7 +170,7 @@ def _build_device_layout_data(device):
     for rp in device.rearports.select_related("cable").all():
         port_info[rp.name] = _port_info(rp)
 
-    _empty = {"connected": False, "cable": "", "peers": []}
+    _empty = {"connected": False, "cable": "", "peers": [], "remote": []}
     connections = {}
 
     # Device-level zone ports
@@ -174,6 +184,7 @@ def _build_device_layout_data(device):
                     "name": port_name,
                     "cable": info["cable"],
                     "peers": info["peers"],
+                    "remote": info["remote"],
                 }
 
     # Sub-layout zone ports: template ID → {module} substitution
@@ -220,6 +231,7 @@ def _build_device_layout_data(device):
                         "name": actual_name,
                         "cable": info["cable"],
                         "peers": info["peers"],
+                        "remote": info["remote"],
                     }
 
     # Device bays: installed device name + URL, keyed by zone ID

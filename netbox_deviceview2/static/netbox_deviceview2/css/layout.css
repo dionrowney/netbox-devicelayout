@@ -725,6 +725,15 @@
   color: var(--dv2-modal-hint);
   margin-top: 4px;
 }
+.dv2-color-picker {
+  width: 36px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #888;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
 .dv2-modal-port-row {
   display: flex;
   align-items: center;

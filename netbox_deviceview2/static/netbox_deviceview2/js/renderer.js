@@ -69,13 +69,19 @@ function _showTooltip(e, port, portData) {
   const name = portData?.name || port.name || port.label || port.id;
   const cable = portData?.cable || "";
   const peers = portData?.peers || [];
+  const remote = portData?.remote || [];
   const connected = portData?.connected ?? false;
 
   let html = `<div class="dv2-tt-row"><span class="dv2-tt-key">Port</span><span class="dv2-tt-val">${_esc(name)}</span></div>`;
   if (connected) {
-    html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Cable</span><span class="dv2-tt-val">${_esc(cable || "connected")}</span></div>`;
+    if (cable) {
+      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Cable</span><span class="dv2-tt-val">${_esc(cable)}</span></div>`;
+    }
     if (peers.length) {
-      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Peer${peers.length > 1 ? "s" : ""}</span><span class="dv2-tt-val">${peers.map(_esc).join("<br>")}</span></div>`;
+      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Link Peer</span><span class="dv2-tt-val">${peers.map(_esc).join("<br>")}</span></div>`;
+    }
+    if (remote.length) {
+      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Connection</span><span class="dv2-tt-val">${remote.map(_esc).join("<br>")}</span></div>`;
     }
   } else {
     html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Status</span><span class="dv2-tt-val dv2-tt-unconnected">Not connected</span></div>`;
@@ -155,6 +161,16 @@ export function createZoneEl(zone, opts = {}) {
   // CSS Grid placement (1-based, matching JSON schema)
   el.style.gridColumn = `${p.col} / span ${p.col_span || 1}`;
   el.style.gridRow = `${p.row} / span ${p.row_span || 1}`;
+
+  // Custom appearance overrides (override type-based CSS rules)
+  if (zone.bg_color === "none") {
+    el.style.background = "transparent";
+  } else if (zone.bg_color) {
+    el.style.background = zone.bg_color;
+  }
+  if (zone.no_border) {
+    el.style.border = "none";
+  }
 
   if (editable) {
     el.draggable = true;
@@ -253,11 +269,12 @@ function _renderSubLayout(parentEl, subLayout, opts, parentZoneId) {
   const subOpts = { ...opts, editable: false, connections: subConns };
 
   const subGrid = document.createElement("div");
+  subGrid.className = "dv2-sub-grid";
   subGrid.style.cssText =
     `display:grid;` +
     `grid-template-columns:repeat(${cols},1fr);` +
     `grid-template-rows:repeat(${rows},1fr);` +
-    `gap:3px;width:100%;`;
+    `gap:3px;width:100%;transform-origin:top left;`;
 
   for (const zone of subLayout.zones) {
     const zoneEl = createZoneEl(zone, subOpts);
@@ -265,7 +282,23 @@ function _renderSubLayout(parentEl, subLayout, opts, parentZoneId) {
     subGrid.appendChild(zoneEl);
   }
 
+  // Prevent overflow while zoom settles
+  parentEl.style.overflow = "hidden";
   parentEl.appendChild(subGrid);
+
+  // Scale sub-layout to fit the parent zone whenever its width changes
+  function applySubZoom() {
+    subGrid.style.zoom = "";
+    const available = subGrid.clientWidth;
+    const natural   = subGrid.scrollWidth;
+    if (natural > available && available > 0) {
+      subGrid.style.zoom = available / natural;
+    }
+  }
+
+  requestAnimationFrame(applySubZoom);
+  const ro = new ResizeObserver(applySubZoom);
+  ro.observe(parentEl);
 }
 
 /**
