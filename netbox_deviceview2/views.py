@@ -91,15 +91,37 @@ def _first_sub_layout(data):
 # Shared helper: build device layout context data
 # ---------------------------------------------------------------------------
 
+def _has_zones(layouts_data):
+    """Return True if any layout in layouts_data contains at least one zone."""
+    return any(
+        zone
+        for layout in layouts_data.get("layouts", [])
+        for zone in layout.get("zones", [])
+    )
+
+
 def _build_device_layout_data(device):
     """
-    Returns (layouts_data, sub_layouts, connections) for a device.
+    Returns (layouts_data, sub_layouts, connections, device_bays_info, layout_source).
 
     layouts_data is always in multi-layout format {"layouts": [...]}.
     connections is populated for every port that appears in any layout zone.
+    layout_source is "device" or "device_type" — falls back to device type when
+    the device has no layout of its own.
     """
     layout_obj, _ = DeviceLayout.objects.get_or_create(device=device)
     layouts_data = _normalize_layouts(layout_obj.layout)
+
+    layout_source = "device"
+    if not _has_zones(layouts_data):
+        try:
+            dt_layout = DeviceTypeLayout.objects.get(device_type=device.device_type)
+            dt_data = _normalize_layouts(dt_layout.layout)
+            if _has_zones(dt_data):
+                layouts_data = dt_data
+                layout_source = "device_type"
+        except DeviceTypeLayout.DoesNotExist:
+            pass
 
     # Collect all zones across all layouts for sub-layout and connection building
     all_zones = [
@@ -163,12 +185,20 @@ def _build_device_layout_data(device):
         return {"connected": obj.cable_id is not None, "cable": cable_label, "peers": peers, "remote": remote}
 
     port_info = {}
+    port_id_by_name = {}
+    port_type_by_name = {}
     for iface in device.interfaces.select_related("cable").all():
         port_info[iface.name] = _port_info(iface)
+        port_id_by_name[iface.name] = iface.pk
+        port_type_by_name[iface.name] = "interface"
     for fp in device.frontports.select_related("cable").all():
         port_info[fp.name] = _port_info(fp)
+        port_id_by_name[fp.name] = fp.pk
+        port_type_by_name[fp.name] = "front-port"
     for rp in device.rearports.select_related("cable").all():
         port_info[rp.name] = _port_info(rp)
+        port_id_by_name[rp.name] = rp.pk
+        port_type_by_name[rp.name] = "rear-port"
 
     _empty = {"connected": False, "cable": "", "peers": [], "remote": []}
     connections = {}
@@ -224,15 +254,21 @@ def _build_device_layout_data(device):
                         continue
                     actual_name = template_name.replace("{module}", bay_position)
                     info = port_info.get(actual_name, _empty)
+                    actual_port_id = port_id_by_name.get(actual_name)
+                    actual_port_type = port_type_by_name.get(actual_name)
                     # Prefix with parent bay zone id to avoid key collisions when
                     # multiple bays use the same module type (identical zone/port IDs).
-                    connections[f"{zone['id']}/{sub_zone['id']}:{port['id']}"] = {
+                    entry = {
                         "connected": info["connected"],
                         "name": actual_name,
                         "cable": info["cable"],
                         "peers": info["peers"],
                         "remote": info["remote"],
                     }
+                    if actual_port_id:
+                        entry["port_id"] = actual_port_id
+                        entry["netbox_type"] = actual_port_type
+                    connections[f"{zone['id']}/{sub_zone['id']}:{port['id']}"] = entry
 
     # Device bays: installed device name + URL, keyed by zone ID
     device_bays_info = {}
@@ -257,7 +293,7 @@ def _build_device_layout_data(device):
             "device_url": dev.get_absolute_url(),
         }
 
-    return layouts_data, sub_layouts, connections, device_bays_info
+    return layouts_data, sub_layouts, connections, device_bays_info, layout_source
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +369,7 @@ class DeviceLayoutView(ObjectView):
     template_name = "netbox_deviceview2/device_layout.html"
 
     def get_extra_context(self, request, instance):
-        layouts_data, sub_layouts, connections, device_bays_info = _build_device_layout_data(instance)
+        layouts_data, sub_layouts, connections, device_bays_info, layout_source = _build_device_layout_data(instance)
         save_url = reverse(
             "plugins:netbox_deviceview2:device_layout_save",
             kwargs={"pk": instance.pk},
@@ -349,6 +385,7 @@ class DeviceLayoutView(ObjectView):
             "save_url": save_url,
             "object_type": "device",
             "object_pk": instance.pk,
+            "layout_source": layout_source,
         }
 
 
@@ -375,7 +412,7 @@ class _PortLayoutViewBase(ObjectView):
                 "object_type": "device",
                 "object_pk": 0,
             }
-        layouts_data, sub_layouts, connections, device_bays_info = _build_device_layout_data(device)
+        layouts_data, sub_layouts, connections, device_bays_info, layout_source = _build_device_layout_data(device)
         return {
             "layout_json": json.dumps(layouts_data),
             "sub_layouts_json": json.dumps(sub_layouts),
@@ -387,6 +424,7 @@ class _PortLayoutViewBase(ObjectView):
             "save_url": "",
             "object_type": "device",
             "object_pk": device.pk,
+            "layout_source": layout_source,
         }
 
 

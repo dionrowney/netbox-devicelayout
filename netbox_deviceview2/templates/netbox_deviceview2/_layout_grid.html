@@ -14,6 +14,11 @@ Context vars:
     </button>
     <a href="?" class="btn btn-sm btn-outline-secondary">Cancel</a>
   {% else %}
+    {% if layout_source == "device_type" %}
+      <span class="badge text-bg-secondary" title="No device-specific layout saved — showing the Device Type layout">
+        <i class="mdi mdi-information-outline"></i> Layout from Device Type
+      </span>
+    {% endif %}
     {% if can_edit %}
       <a href="?edit=1" class="btn btn-sm btn-outline-primary ms-auto">
         <i class="mdi mdi-pencil"></i> Edit Layout

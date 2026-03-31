@@ -53,6 +53,16 @@ export function createEmptyCellEl(row, col, editable = false) {
 }
 
 // Shared tooltip element — created once, appended to body.
+const PORT_URL_PATHS = {
+  "interface":           "interfaces",
+  "front-port":          "front-ports",
+  "rear-port":           "rear-ports",
+  "console-port":        "console-ports",
+  "console-server-port": "console-server-ports",
+  "power-port":          "power-ports",
+  "power-outlet":        "power-outlets",
+};
+
 let _tooltipEl = null;
 function _getTooltip() {
   if (!_tooltipEl) {
@@ -119,7 +129,7 @@ function _esc(str) {
  * @param {object|boolean} portData  - connection object {connected, name, cable, peers} or boolean (view mode)
  * @param {boolean} editable   - if true, neutral colour used, no tooltip
  */
-export function createPortEl(port, portData, editable) {
+export function createPortEl(port, portData, editable, url = null) {
   const el = document.createElement("div");
   el.className = "dv2-port";
   el.dataset.portId = port.id;
@@ -137,6 +147,11 @@ export function createPortEl(port, portData, editable) {
     el.addEventListener("mouseenter", (e) => _showTooltip(e, port, typeof portData === "object" ? portData : null));
     el.addEventListener("mousemove", _positionTooltip);
     el.addEventListener("mouseleave", _hideTooltip);
+
+    if (url) {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", () => { window.location.href = url; });
+    }
   }
   return el;
 }
@@ -191,7 +206,16 @@ export function createZoneEl(zone, opts = {}) {
     portsEl.className = "dv2-ports";
     for (const port of zone.ports) {
       const portData = connections[`${zone.id}:${port.id}`] ?? false;
-      portsEl.appendChild(createPortEl(port, portData, editable));
+      let url = null;
+      if (!editable) {
+        // Sub-layout ports carry actual port_id + netbox_type in portData;
+        // top-level ports use port.id and zone.netbox_type directly.
+        const pid   = (typeof portData === "object" && portData?.port_id)     ? portData.port_id     : port.id;
+        const ptype = (typeof portData === "object" && portData?.netbox_type)  ? portData.netbox_type : (zone.netbox_type || null);
+        const base  = ptype && PORT_URL_PATHS[ptype] ? `/dcim/${PORT_URL_PATHS[ptype]}/` : null;
+        url = base ? `${base}${pid}/` : null;
+      }
+      portsEl.appendChild(createPortEl(port, portData, editable, url));
     }
     el.appendChild(portsEl);
   }

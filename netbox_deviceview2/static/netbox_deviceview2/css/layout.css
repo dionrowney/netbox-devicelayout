@@ -729,6 +729,12 @@
   color: var(--dv2-modal-hint);
   margin-top: 4px;
 }
+.dv2-port-link {
+  display: contents; /* transparent to layout — port box renders as if unwrapped */
+  text-decoration: none;
+  color: inherit;
+}
+
 .dv2-color-picker {
   width: 36px;
   height: 30px;

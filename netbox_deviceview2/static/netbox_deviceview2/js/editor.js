@@ -368,7 +368,7 @@ export class LayoutEditor {
       ports: drag.zoneType === "port_group"
         ? [{ id: String(drag.itemId), label: drag.itemDisplay, name: drag.itemName }]
         : [],
-      ...(drag.zoneType === "port_group" && { bg_color: "none", border_color: "none" }),
+      ...(drag.zoneType === "port_group" && { bg_color: "none", border_color: "none", netbox_type: drag.sidebarType }),
     };
     this.layout.zones.push(zone);
     this._renderAll();
