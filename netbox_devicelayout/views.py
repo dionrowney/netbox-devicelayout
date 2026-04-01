@@ -304,13 +304,13 @@ def _build_device_layout_data(device):
 class DeviceTypeLayoutView(ObjectView):
     queryset = DeviceType.objects.all()
     tab = device_type_layout_tab
-    template_name = "netbox_deviceview2/devicetype_layout.html"
+    template_name = "netbox_devicelayout/devicetype_layout.html"
 
     def get_extra_context(self, request, instance):
         layout, _ = DeviceTypeLayout.objects.get_or_create(device_type=instance)
         layouts_data = _normalize_layouts(layout.layout)
         save_url = reverse(
-            "plugins:netbox_deviceview2:devicetype_layout_save",
+            "plugins:netbox_devicelayout:devicetype_layout_save",
             kwargs={"pk": instance.pk},
         )
         return {
@@ -335,13 +335,13 @@ class DeviceTypeLayoutView(ObjectView):
 class ModuleTypeLayoutView(ObjectView):
     queryset = ModuleType.objects.all()
     tab = module_type_layout_tab
-    template_name = "netbox_deviceview2/moduletype_layout.html"
+    template_name = "netbox_devicelayout/moduletype_layout.html"
 
     def get_extra_context(self, request, instance):
         layout, _ = ModuleTypeLayout.objects.get_or_create(module_type=instance)
         layouts_data = _normalize_layouts(layout.layout)
         save_url = reverse(
-            "plugins:netbox_deviceview2:moduletype_layout_save",
+            "plugins:netbox_devicelayout:moduletype_layout_save",
             kwargs={"pk": instance.pk},
         )
         return {
@@ -366,12 +366,12 @@ class ModuleTypeLayoutView(ObjectView):
 class DeviceLayoutView(ObjectView):
     queryset = Device.objects.all()
     tab = device_layout_tab
-    template_name = "netbox_deviceview2/device_layout.html"
+    template_name = "netbox_devicelayout/device_layout.html"
 
     def get_extra_context(self, request, instance):
         layouts_data, sub_layouts, connections, device_bays_info, layout_source = _build_device_layout_data(instance)
         save_url = reverse(
-            "plugins:netbox_deviceview2:device_layout_save",
+            "plugins:netbox_devicelayout:device_layout_save",
             kwargs={"pk": instance.pk},
         )
         return {
@@ -395,7 +395,7 @@ class DeviceLayoutView(ObjectView):
 # ---------------------------------------------------------------------------
 
 class _PortLayoutViewBase(ObjectView):
-    template_name = "netbox_deviceview2/port_layout.html"
+    template_name = "netbox_devicelayout/port_layout.html"
 
     def get_extra_context(self, request, instance):
         device = instance.device

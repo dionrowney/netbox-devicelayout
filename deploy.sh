@@ -3,8 +3,8 @@
 set -e
 
 CONTAINER="netbox-stack-netbox-1"
-SRC="$(cd "$(dirname "$0")" && pwd)/netbox_deviceview2"
-DEST="/opt/netbox/venv/lib/python3.12/site-packages/netbox_deviceview2"
+SRC="$(cd "$(dirname "$0")" && pwd)/netbox_devicelayout"
+DEST="/opt/netbox/venv/lib/python3.12/site-packages/netbox_devicelayout"
 
 echo "Copying files..."
 

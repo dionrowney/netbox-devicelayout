@@ -311,7 +311,7 @@ function initEditMode(col, layouts, subLayouts, objectType, objectPk) {
     if (cloneApplyBtn) cloneApplyBtn.disabled = true;
 
     const excludePk = (sourceType === objectType) ? objectPk : "";
-    const url = `/plugins/netbox-deviceview2/clone-sources/?object_type=${sourceType}&exclude_pk=${excludePk}`;
+    const url = `/plugins/netbox-devicelayout/clone-sources/?object_type=${sourceType}&exclude_pk=${excludePk}`;
     try {
       const resp = await fetch(url);
       const data = await resp.json();
@@ -352,7 +352,7 @@ function initEditMode(col, layouts, subLayouts, objectType, objectPk) {
 
   cloneApplyBtn?.addEventListener("click", async () => {
     if (!_cloneSelectedId) return;
-    const url = `/plugins/netbox-deviceview2/clone-layout/?object_type=${_cloneSelectedType}&pk=${_cloneSelectedId}`;
+    const url = `/plugins/netbox-devicelayout/clone-layout/?object_type=${_cloneSelectedType}&pk=${_cloneSelectedId}`;
     try {
       const resp = await fetch(url);
       const data = await resp.json();

@@ -1,0 +1,16 @@
+{% extends 'generic/object.html' %}
+{% load static %}
+
+{% block content %}
+
+{% include 'netbox_devicelayout/_layout_grid.html' %}
+
+{% endblock content %}
+
+
+{% block javascript %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'netbox_devicelayout/css/layout.css' %}">
+<script src="{% static 'netbox_devicelayout/js/js-yaml.min.js' %}"></script>
+<script type="module" src="{% static 'netbox_devicelayout/js/main.js' %}"></script>
+{% endblock javascript %}

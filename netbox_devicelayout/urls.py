@@ -8,7 +8,7 @@ from .views import (
     ModuleTypeLayoutSaveView,
 )
 
-app_name = "netbox_deviceview2"
+app_name = "netbox_devicelayout"
 
 urlpatterns = [
     path(

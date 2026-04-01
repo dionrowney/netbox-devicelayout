@@ -1,14 +1,14 @@
 from netbox.plugins import PluginConfig
 
 
-class NetboxDeviceview2Config(PluginConfig):
-    name = "netbox_deviceview2"
-    verbose_name = "Device View 2"
+class NetboxDeviceLayoutConfig(PluginConfig):
+    name = "netbox_devicelayout"
+    verbose_name = "Device Layout"
     description = "Physical layout view and WYSIWYG editor for device types and module types"
     version = "0.1.0"
     author = ""
     author_email = ""
-    base_url = "netbox-deviceview2"
+    base_url = "netbox-devicelayout"
     min_version = "4.1.0"
     required_settings = []
     default_settings = {}
@@ -19,4 +19,4 @@ class NetboxDeviceview2Config(PluginConfig):
         from . import signals  # noqa: F401
 
 
-config = NetboxDeviceview2Config
+config = NetboxDeviceLayoutConfig

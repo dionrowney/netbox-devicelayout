@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.backends.legacy:build"
 
 [project]
-name = "netbox-deviceview2"
+name = "netbox-devicelayout"
 version = "0.1.0"
 description = "Physical layout view and WYSIWYG editor for NetBox device types and module types"
 readme = "README.md"
@@ -13,8 +13,8 @@ dependencies = [
 ]
 
 [project.entry-points."netbox_plugins"]
-netbox_deviceview2 = "netbox_deviceview2:config"
+netbox_devicelayout = "netbox_devicelayout:config"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["netbox_deviceview2*"]
+include = ["netbox_devicelayout*"]

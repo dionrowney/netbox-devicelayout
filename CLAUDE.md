@@ -1,4 +1,4 @@
-# netbox_deviceview2 — Claude Code Guide
+# netbox_devicelayout — Claude Code Guide
 
 ## What this is
 
@@ -8,7 +8,7 @@ A NetBox 4.x plugin that adds a **Layout** tab to Device Type, Module Type, Devi
 
 - NetBox version: **4.2.9** running in Docker container `netbox-stack-netbox-1` on `localhost:8000`
 - Python: 3.12 inside container at `/opt/netbox/venv`
-- Plugin installed at: `/opt/netbox/venv/lib/python3.12/site-packages/netbox_deviceview2/`
+- Plugin installed at: `/opt/netbox/venv/lib/python3.12/site-packages/netbox_devicelayout/`
 - Static files served from: `/opt/netbox/netbox/static/`
 
 ## Deploy workflow
@@ -22,7 +22,7 @@ Or manually for targeted updates:
 
 ```bash
 # Copy a single file
-docker cp "netbox_deviceview2/views.py" netbox-stack-netbox-1:/opt/netbox/venv/lib/python3.12/site-packages/netbox_deviceview2/views.py
+docker cp "netbox_devicelayout/views.py" netbox-stack-netbox-1:/opt/netbox/venv/lib/python3.12/site-packages/netbox_devicelayout/views.py
 
 # After changing templates or Python files — restart required
 docker restart netbox-stack-netbox-1
@@ -37,20 +37,20 @@ Always hard-refresh the browser (Ctrl+Shift+R) after deploying static files.
 ## File structure
 
 ```
-netbox_deviceview2/
-  __init__.py               PluginConfig — base_url="netbox-deviceview2", min_version="4.1.0"
+netbox_devicelayout/
+  __init__.py               PluginConfig — base_url="netbox-devicelayout", min_version="4.1.0"
   models.py                 DeviceTypeLayout, ModuleTypeLayout (OneToOne + JSONField)
   views.py                  Tab views (GET) + save views (POST)
   urls.py                   Plugin-namespace save endpoints
   migrations/
     0001_initial.py         Depends on ("dcim", "0001_squashed") — confirmed for NetBox 4.2.9
-  templates/netbox_deviceview2/
+  templates/netbox_devicelayout/
     devicetype_layout.html  Extends NetBox base, includes _layout_grid.html
     moduletype_layout.html  Same for module types
     device_layout.html      Same for devices
     port_layout.html        Same for Interface/FrontPort/RearPort (view-only, highlights port)
     _layout_grid.html       Shared grid/editor HTML (toolbar, sidebar, panel, modal)
-  static/netbox_deviceview2/
+  static/netbox_devicelayout/
     css/layout.css          All styles (theme-aware via CSS custom properties)
     js/main.js              Entry point — reads data attrs, delegates to renderer or editor
     js/renderer.js          Renders layout JSON into CSS Grid DOM
@@ -100,18 +100,18 @@ Zone types: `module_bay`, `device_bay`, `port_group`, `power`, `custom`
 | `/dcim/interfaces/<pk>/layout/` | `InterfaceLayoutView` | GET (tab, view-only) |
 | `/dcim/front-ports/<pk>/layout/` | `FrontPortLayoutView` | GET (tab, view-only) |
 | `/dcim/rear-ports/<pk>/layout/` | `RearPortLayoutView` | GET (tab, view-only) |
-| `/plugins/netbox-deviceview2/device-types/<pk>/layout/save/` | `DeviceTypeLayoutSaveView` | POST |
-| `/plugins/netbox-deviceview2/module-types/<pk>/layout/save/` | `ModuleTypeLayoutSaveView` | POST |
-| `/plugins/netbox-deviceview2/devices/<pk>/layout/save/` | `DeviceLayoutSaveView` | POST |
+| `/plugins/netbox-devicelayout/device-types/<pk>/layout/save/` | `DeviceTypeLayoutSaveView` | POST |
+| `/plugins/netbox-devicelayout/module-types/<pk>/layout/save/` | `ModuleTypeLayoutSaveView` | POST |
+| `/plugins/netbox-devicelayout/devices/<pk>/layout/save/` | `DeviceLayoutSaveView` | POST |
 
 Tab views are registered with `@register_model_view` and land in the `dcim:` URL namespace.
-Save views are in `urls.py` and land in the `plugins:netbox_deviceview2:` namespace.
+Save views are in `urls.py` and land in the `plugins:netbox_devicelayout:` namespace.
 
 ## Permissions
 
 - View layout tab: `dcim.view_devicetype` / `dcim.view_moduletype` / `dcim.view_device` / `dcim.view_interface` etc.
 - Show Edit button: `dcim.change_devicetype` / `dcim.change_moduletype` / `dcim.change_device`
-- POST to save view: same change permissions — do NOT use `netbox_deviceview2.change_*` (those are never assigned)
+- POST to save view: same change permissions — do NOT use `netbox_devicelayout.change_*` (those are never assigned)
 - Port layout tabs (Interface/FrontPort/RearPort) are always view-only — no edit mode
 
 ## NetBox API — sidebar items
