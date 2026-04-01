@@ -2,7 +2,7 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -513,3 +513,74 @@ class DeviceLayoutSaveView(_LayoutSaveBase):
         device = get_object_or_404(Device, pk=pk)
         layout, _ = DeviceLayout.objects.get_or_create(device=device)
         return layout
+
+
+# ---------------------------------------------------------------------------
+# Clone helper views (JSON)
+# ---------------------------------------------------------------------------
+
+class CloneSourcesView(LoginRequiredMixin, View):
+    """Return JSON list of objects that have a saved layout, for the clone dialog."""
+
+    def get(self, request):
+        object_type = request.GET.get("object_type", "")
+        exclude_pk  = request.GET.get("exclude_pk", "")
+        results = []
+
+        if object_type == "device_type":
+            qs = DeviceTypeLayout.objects.select_related(
+                "device_type__manufacturer"
+            ).order_by("device_type__manufacturer__name", "device_type__model")
+            if exclude_pk:
+                qs = qs.exclude(device_type_id=exclude_pk)
+            for lt in qs:
+                if _has_zones(_normalize_layouts(lt.layout)):
+                    results.append({
+                        "id": lt.device_type_id,
+                        "name": f"{lt.device_type.manufacturer} \u2014 {lt.device_type.model}",
+                    })
+
+        elif object_type == "module_type":
+            qs = ModuleTypeLayout.objects.select_related(
+                "module_type__manufacturer"
+            ).order_by("module_type__manufacturer__name", "module_type__model")
+            if exclude_pk:
+                qs = qs.exclude(module_type_id=exclude_pk)
+            for lt in qs:
+                if _has_zones(_normalize_layouts(lt.layout)):
+                    results.append({
+                        "id": lt.module_type_id,
+                        "name": f"{lt.module_type.manufacturer} \u2014 {lt.module_type.model}",
+                    })
+
+        elif object_type == "device":
+            qs = DeviceLayout.objects.select_related("device").order_by("device__name")
+            if exclude_pk:
+                qs = qs.exclude(device_id=exclude_pk)
+            for lt in qs:
+                if _has_zones(_normalize_layouts(lt.layout)):
+                    results.append({"id": lt.device_id, "name": lt.device.name})
+
+        return JsonResponse({"results": results})
+
+
+class CloneLayoutView(LoginRequiredMixin, View):
+    """Return the layout JSON for a given object, for the clone dialog."""
+
+    def get(self, request):
+        object_type = request.GET.get("object_type", "")
+        pk = request.GET.get("pk", "")
+        if not pk:
+            return JsonResponse({"error": "pk required"}, status=400)
+        try:
+            if object_type == "device_type":
+                lt = DeviceTypeLayout.objects.get(device_type_id=pk)
+            elif object_type == "module_type":
+                lt = ModuleTypeLayout.objects.get(module_type_id=pk)
+            elif object_type == "device":
+                lt = DeviceLayout.objects.get(device_id=pk)
+            else:
+                return JsonResponse({"error": "invalid object_type"}, status=400)
+        except Exception:
+            return JsonResponse({"error": "not found"}, status=404)
+        return JsonResponse({"layout": _normalize_layouts(lt.layout)})

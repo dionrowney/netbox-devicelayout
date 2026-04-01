@@ -244,6 +244,99 @@ function initEditMode(col, layouts, subLayouts, objectType, objectPk) {
       lastActiveEditor?._undo();
     }
   });
+
+  // ---------------------------------------------------------------------------
+  // Clone modal
+  // ---------------------------------------------------------------------------
+
+  const cloneModalEl    = document.getElementById("dv2-clone-modal");
+  const cloneSourceEl   = document.getElementById("dv2-clone-source-type");
+  const cloneListEl     = document.getElementById("dv2-clone-list");
+  const cloneApplyBtn   = document.getElementById("dv2-clone-apply-btn");
+
+  let _cloneSelectedId   = null;
+  let _cloneSelectedType = null;
+
+  function _openCloneModal() {
+    if (!cloneModalEl) return;
+    _cloneSelectedId = null;
+    _cloneSelectedType = null;
+    if (cloneApplyBtn) cloneApplyBtn.disabled = true;
+    cloneModalEl.classList.add("dv2-modal-open");
+    _fetchCloneSources(cloneSourceEl.value);
+  }
+
+  function _closeCloneModal() {
+    cloneModalEl?.classList.remove("dv2-modal-open");
+  }
+
+  async function _fetchCloneSources(sourceType) {
+    if (!cloneListEl) return;
+    cloneListEl.innerHTML = '<div class="dv2-sidebar-loading">Loading\u2026</div>';
+    _cloneSelectedId = null;
+    _cloneSelectedType = null;
+    if (cloneApplyBtn) cloneApplyBtn.disabled = true;
+
+    const excludePk = (sourceType === objectType) ? objectPk : "";
+    const url = `/plugins/netbox-deviceview2/clone-sources/?object_type=${sourceType}&exclude_pk=${excludePk}`;
+    try {
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const sources = data.results || [];
+      cloneListEl.innerHTML = "";
+      if (sources.length === 0) {
+        cloneListEl.innerHTML = '<div class="dv2-sidebar-empty">No layouts found.</div>';
+        return;
+      }
+      for (const src of sources) {
+        const item = document.createElement("div");
+        item.className = "dv2-clone-item";
+        item.textContent = src.name;
+        item.dataset.id = src.id;
+        item.addEventListener("click", () => {
+          cloneListEl.querySelectorAll(".dv2-clone-item").forEach((el) => el.classList.remove("selected"));
+          item.classList.add("selected");
+          _cloneSelectedId = src.id;
+          _cloneSelectedType = sourceType;
+          if (cloneApplyBtn) cloneApplyBtn.disabled = false;
+        });
+        cloneListEl.appendChild(item);
+      }
+    } catch (_) {
+      cloneListEl.innerHTML = '<div class="dv2-sidebar-empty">Failed to load sources.</div>';
+    }
+  }
+
+  document.getElementById("dv2-clone-btn")?.addEventListener("click", _openCloneModal);
+  document.getElementById("dv2-clone-close-btn")?.addEventListener("click", _closeCloneModal);
+  document.getElementById("dv2-clone-cancel-btn")?.addEventListener("click", _closeCloneModal);
+
+  cloneSourceEl?.addEventListener("change", () => {
+    _cloneSelectedId = null;
+    if (cloneApplyBtn) cloneApplyBtn.disabled = true;
+    _fetchCloneSources(cloneSourceEl.value);
+  });
+
+  cloneApplyBtn?.addEventListener("click", async () => {
+    if (!_cloneSelectedId) return;
+    const url = `/plugins/netbox-deviceview2/clone-layout/?object_type=${_cloneSelectedType}&pk=${_cloneSelectedId}`;
+    try {
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const srcLayouts = data.layout?.layouts || [];
+      if (srcLayouts.length === 0) {
+        alert("The selected source has no layouts to clone.");
+        return;
+      }
+      for (const layout of srcLayouts) {
+        addEditorPanel(layout);
+      }
+      col.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
+      _closeCloneModal();
+    } catch (_) {
+      alert("Failed to fetch clone source layout.");
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

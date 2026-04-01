@@ -9,6 +9,7 @@ Context vars:
 <div class="dv2-toolbar d-flex align-items-center gap-2 mb-2 flex-wrap">
   {% if edit_mode %}
     <button id="dv2-add-layout-btn" class="btn btn-sm btn-outline-secondary ms-auto">+ Add Layout</button>
+    <button id="dv2-clone-btn" class="btn btn-sm btn-outline-secondary">+ Clone</button>
     <button id="dv2-save-btn" class="btn btn-sm btn-primary">
       <i class="mdi mdi-content-save"></i> Save Layout
     </button>
@@ -156,4 +157,40 @@ Context vars:
     </div>
   </div>
 </div>
+
+{# ---- Clone modal -------------------------------------------------------- #}
+<div id="dv2-clone-modal">
+  <div class="dv2-modal-dialog">
+    <div class="dv2-modal-header">
+      <span>Clone Layout From</span>
+      <button class="dv2-modal-close" id="dv2-clone-close-btn" type="button">&#x2715;</button>
+    </div>
+    <div class="dv2-modal-body">
+
+      <div class="mb-3">
+        <label class="form-label" for="dv2-clone-source-type">Clone from</label>
+        <select id="dv2-clone-source-type" class="dv2-select">
+          {% if object_type == "device" %}
+            <option value="device">Another Device</option>
+            <option value="device_type">Another Device Type</option>
+          {% elif object_type == "module_type" %}
+            <option value="module_type">Another Module Type</option>
+          {% else %}
+            <option value="device_type">Another Device Type</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <div id="dv2-clone-list" class="dv2-clone-list">
+        <div class="dv2-sidebar-loading">Loading…</div>
+      </div>
+
+    </div>
+    <div class="dv2-modal-footer">
+      <button type="button" class="btn btn-secondary btn-sm" id="dv2-clone-cancel-btn">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" id="dv2-clone-apply-btn" disabled>Clone</button>
+    </div>
+  </div>
+</div>
+
 {% endif %}

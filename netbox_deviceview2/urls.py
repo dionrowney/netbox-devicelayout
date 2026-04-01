@@ -1,6 +1,12 @@
 from django.urls import path
 
-from .views import DeviceLayoutSaveView, DeviceTypeLayoutSaveView, ModuleTypeLayoutSaveView
+from .views import (
+    CloneLayoutView,
+    CloneSourcesView,
+    DeviceLayoutSaveView,
+    DeviceTypeLayoutSaveView,
+    ModuleTypeLayoutSaveView,
+)
 
 app_name = "netbox_deviceview2"
 
@@ -19,5 +25,15 @@ urlpatterns = [
         "devices/<int:pk>/layout/save/",
         DeviceLayoutSaveView.as_view(),
         name="device_layout_save",
+    ),
+    path(
+        "clone-sources/",
+        CloneSourcesView.as_view(),
+        name="clone_sources",
+    ),
+    path(
+        "clone-layout/",
+        CloneLayoutView.as_view(),
+        name="clone_layout",
     ),
 ]
