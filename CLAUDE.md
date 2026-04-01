@@ -125,14 +125,14 @@ The editor fetches templates via the NetBox REST API:
 | Front Ports | `front-port-templates/` | `front-ports/` | ✓ | ✓ | ✓ |
 | Rear Ports | `rear-port-templates/` | `rear-ports/` | ✓ | ✓ | ✓ |
 | Device Bays | `device-bay-templates/` | `device-bays/` | ✓ | — | ✓ |
-| Console Ports | `console-port-templates/` | `console-ports/` | ✓ | — | ✓ |
-| Console Server Ports | `console-server-port-templates/` | `console-server-ports/` | ✓ | — | ✓ |
-| Power Ports | `power-port-templates/` | `power-ports/` | ✓ | — | ✓ |
-| Power Outlets | `power-outlet-templates/` | `power-outlets/` | ✓ | — | ✓ |
+| Console Ports | `console-port-templates/` | `console-ports/` | ✓ | ✓ | ✓ |
+| Console Server Ports | `console-server-port-templates/` | `console-server-ports/` | ✓ | ✓ | ✓ |
+| Power Ports | `power-port-templates/` | `power-ports/` | ✓ | ✓ | ✓ |
+| Power Outlets | `power-outlet-templates/` | `power-outlets/` | ✓ | ✓ | ✓ |
 
 All under `/api/dcim/`. Filter param: `device_type_id=<pk>` for device types, `module_type_id=<pk>` for module types, `device_id=<pk>` for devices.
 
-Device Bays, Console/Power types not shown in sidebar for module types (`object_type == "module_type"`).
+Device Bays only are not shown in sidebar for module types (`object_type == "module_type"`).
 
 **Display logic for items:**
 - Sidebar list always shows `item.name`
