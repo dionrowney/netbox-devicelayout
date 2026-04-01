@@ -7,25 +7,8 @@ class DeviceTypeLayout(models.Model):
     device_type = models.OneToOneField(
         to="dcim.DeviceType",
         on_delete=models.CASCADE,
-        related_name="deviceview2_layout",
+        related_name="devicelayout_layout",
     )
-    # JSON schema:
-    # {
-    #   "rows": 2,
-    #   "cols": 24,
-    #   "cells": [
-    #     {
-    #       "row": 0,        (0-based)
-    #       "col": 0,        (0-based)
-    #       "col_span": 2,
-    #       "row_span": 1,
-    #       "type": "interface",   # interface|front_port|rear_port|console_port|
-    #                               # console_server_port|power_port|power_outlet|module_bay
-    #       "object_id": 42,
-    #       "name": "Gi0/0"
-    #     }
-    #   ]
-    # }
     layout = models.JSONField(default=dict, blank=True)
     modified = models.DateTimeField(auto_now=True)
 
@@ -38,12 +21,12 @@ class DeviceTypeLayout(models.Model):
 
 
 class DeviceLayout(models.Model):
-    """Stores the physical grid layout for a device (copied from its device type on creation)."""
+    """Stores the physical grid layout for a device."""
 
     device = models.OneToOneField(
         to="dcim.Device",
         on_delete=models.CASCADE,
-        related_name="deviceview2_layout",
+        related_name="devicelayout_layout",
     )
     layout = models.JSONField(default=dict, blank=True)
     modified = models.DateTimeField(auto_now=True)
@@ -62,7 +45,7 @@ class ModuleTypeLayout(models.Model):
     module_type = models.OneToOneField(
         to="dcim.ModuleType",
         on_delete=models.CASCADE,
-        related_name="deviceview2_layout",
+        related_name="devicelayout_layout",
     )
     layout = models.JSONField(default=dict, blank=True)
     modified = models.DateTimeField(auto_now=True)
