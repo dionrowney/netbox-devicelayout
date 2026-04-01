@@ -11,5 +11,6 @@
 {% block javascript %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'netbox_deviceview2/css/layout.css' %}">
+<script src="{% static 'netbox_deviceview2/js/js-yaml.min.js' %}"></script>
 <script type="module" src="{% static 'netbox_deviceview2/js/main.js' %}"></script>
 {% endblock javascript %}

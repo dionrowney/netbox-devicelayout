@@ -70,25 +70,37 @@ function createViewPanelWrapper(panelEl, layout) {
     }
   });
 
-  // Export button — downloads this panel's layout as a pretty-printed JSON file
+  // Export buttons — download this panel's layout as JSON or YAML
   if (layout) {
-    const exportBtn = document.createElement("button");
-    exportBtn.className = "btn btn-sm btn-outline-secondary ms-auto";
-    exportBtn.textContent = "Export";
-    exportBtn.title = "Download this panel layout as JSON";
-    exportBtn.addEventListener("click", () => {
-      const data = JSON.stringify({ layouts: [layout] }, null, 2);
-      const blob = new Blob([data], { type: "application/json" });
+    const slug = (layout.panel_label || "layout")
+      .toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "layout";
+    const data = { layouts: [layout] };
+
+    function _download(content, filename, mime) {
+      const blob = new Blob([content], { type: mime });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
-      a.href     = url;
-      const slug = (layout.panel_label || "layout")
-        .toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "layout";
-      a.download = `${slug}.json`;
-      a.click();
+      a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
+    }
+
+    const exportJsonBtn = document.createElement("button");
+    exportJsonBtn.className = "btn btn-sm btn-outline-secondary ms-auto";
+    exportJsonBtn.textContent = "Export JSON";
+    exportJsonBtn.title = "Download as JSON";
+    exportJsonBtn.addEventListener("click", () =>
+      _download(JSON.stringify(data, null, 2), `${slug}.json`, "application/json"));
+    ptb.appendChild(exportJsonBtn);
+
+    const exportYamlBtn = document.createElement("button");
+    exportYamlBtn.className = "btn btn-sm btn-outline-secondary";
+    exportYamlBtn.textContent = "Export YAML";
+    exportYamlBtn.title = "Download as YAML";
+    exportYamlBtn.addEventListener("click", () => {
+      const yaml = window.jsyaml ? window.jsyaml.dump(data, { lineWidth: -1 }) : JSON.stringify(data, null, 2);
+      _download(yaml, `${slug}.yaml`, "text/yaml");
     });
-    ptb.appendChild(exportBtn);
+    ptb.appendChild(exportYamlBtn);
   }
 
   wrapper.appendChild(ptb);
@@ -400,20 +412,30 @@ function initEditMode(col, layouts, subLayouts, objectType, objectPk) {
   importApplyBtn?.addEventListener("click", () => {
     const raw = importTextEl?.value?.trim();
     if (!raw) {
-      if (importErrorEl) { importErrorEl.textContent = "No JSON provided."; importErrorEl.style.display = ""; }
+      if (importErrorEl) { importErrorEl.textContent = "No content provided."; importErrorEl.style.display = ""; }
       return;
     }
     let parsed;
+    // Try JSON first; fall back to YAML if js-yaml is available
     try {
       parsed = JSON.parse(raw);
-    } catch (err) {
-      if (importErrorEl) { importErrorEl.textContent = `Invalid JSON: ${err.message}`; importErrorEl.style.display = ""; }
-      return;
+    } catch (_jsonErr) {
+      if (window.jsyaml) {
+        try {
+          parsed = window.jsyaml.load(raw);
+        } catch (yamlErr) {
+          if (importErrorEl) { importErrorEl.textContent = `Could not parse as JSON or YAML: ${yamlErr.message}`; importErrorEl.style.display = ""; }
+          return;
+        }
+      } else {
+        if (importErrorEl) { importErrorEl.textContent = `Invalid JSON: ${_jsonErr.message}`; importErrorEl.style.display = ""; }
+        return;
+      }
     }
     // Normalise: accept {"layouts":[...]} or a single layout object
     const imported = normalizeLayouts(parsed);
     if (!imported.layouts.length) {
-      if (importErrorEl) { importErrorEl.textContent = "No layouts found in the imported JSON."; importErrorEl.style.display = ""; }
+      if (importErrorEl) { importErrorEl.textContent = "No layouts found in the imported content."; importErrorEl.style.display = ""; }
       return;
     }
     for (const layout of imported.layouts) {

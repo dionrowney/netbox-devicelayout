@@ -203,13 +203,13 @@ Context vars:
 
       <div class="mb-3">
         <label class="form-label" for="dv2-import-file">Upload JSON file</label>
-        <input type="file" id="dv2-import-file" accept=".json" class="form-control">
+        <input type="file" id="dv2-import-file" accept=".json,.yaml,.yml" class="form-control">
       </div>
 
       <div class="mb-3">
-        <label class="form-label" for="dv2-import-text">Or paste JSON</label>
+        <label class="form-label" for="dv2-import-text">Or paste JSON / YAML</label>
         <textarea id="dv2-import-text" class="form-control dv2-import-textarea"
-                  rows="8" placeholder='{"layouts": [...]}'></textarea>
+                  rows="8" placeholder='{"layouts": [...]}  or  layouts: [...]'></textarea>
       </div>
 
       <div id="dv2-import-error" class="text-danger small" style="display:none"></div>
