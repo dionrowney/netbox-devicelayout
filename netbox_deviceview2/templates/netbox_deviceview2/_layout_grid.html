@@ -10,6 +10,7 @@ Context vars:
   {% if edit_mode %}
     <button id="dv2-add-layout-btn" class="btn btn-sm btn-outline-secondary ms-auto">+ Add Layout</button>
     <button id="dv2-clone-btn" class="btn btn-sm btn-outline-secondary">+ Clone</button>
+    <button id="dv2-import-btn" class="btn btn-sm btn-outline-secondary">Import</button>
     <button id="dv2-save-btn" class="btn btn-sm btn-primary">
       <i class="mdi mdi-content-save"></i> Save Layout
     </button>
@@ -189,6 +190,36 @@ Context vars:
     <div class="dv2-modal-footer">
       <button type="button" class="btn btn-secondary btn-sm" id="dv2-clone-cancel-btn">Cancel</button>
       <button type="button" class="btn btn-primary btn-sm" id="dv2-clone-apply-btn" disabled>Clone</button>
+    </div>
+  </div>
+</div>
+
+{# ---- Import modal ------------------------------------------------------- #}
+<div id="dv2-import-modal">
+  <div class="dv2-modal-dialog">
+    <div class="dv2-modal-header">
+      <span>Import Layout</span>
+      <button class="dv2-modal-close" id="dv2-import-close-btn" type="button">&#x2715;</button>
+    </div>
+    <div class="dv2-modal-body">
+
+      <div class="mb-3">
+        <label class="form-label" for="dv2-import-file">Upload JSON file</label>
+        <input type="file" id="dv2-import-file" accept=".json" class="form-control">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="dv2-import-text">Or paste JSON</label>
+        <textarea id="dv2-import-text" class="form-control dv2-import-textarea"
+                  rows="8" placeholder='{"layouts": [...]}'></textarea>
+      </div>
+
+      <div id="dv2-import-error" class="text-danger small" style="display:none"></div>
+
+    </div>
+    <div class="dv2-modal-footer">
+      <button type="button" class="btn btn-secondary btn-sm" id="dv2-import-cancel-btn">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" id="dv2-import-apply-btn">Import</button>
     </div>
   </div>
 </div>

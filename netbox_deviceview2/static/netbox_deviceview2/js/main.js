@@ -37,8 +37,8 @@ function createPanelEl() {
   return panel;
 }
 
-/** Wrap a view-mode panel with a small per-panel toolbar (Fit button). */
-function createViewPanelWrapper(panelEl) {
+/** Wrap a view-mode panel with a small per-panel toolbar (Fit + Export buttons). */
+function createViewPanelWrapper(panelEl, layout) {
   const wrapper = document.createElement("div");
   wrapper.className = "dv2-view-panel-wrapper";
 
@@ -69,6 +69,27 @@ function createViewPanelWrapper(panelEl) {
       }
     }
   });
+
+  // Export button — downloads this panel's layout as a pretty-printed JSON file
+  if (layout) {
+    const exportBtn = document.createElement("button");
+    exportBtn.className = "btn btn-sm btn-outline-secondary ms-auto";
+    exportBtn.textContent = "Export";
+    exportBtn.title = "Download this panel layout as JSON";
+    exportBtn.addEventListener("click", () => {
+      const data = JSON.stringify({ layouts: [layout] }, null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      const slug = (layout.panel_label || "layout")
+        .toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "layout";
+      a.download = `${slug}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    ptb.appendChild(exportBtn);
+  }
 
   wrapper.appendChild(ptb);
   wrapper.appendChild(panelEl);
@@ -147,7 +168,7 @@ function initViewMode(col, layouts, subLayouts, connections, deviceBays, highlig
 
   for (const layout of layouts) {
     const panelEl = createPanelEl();
-    const wrapper = createViewPanelWrapper(panelEl);
+    const wrapper = createViewPanelWrapper(panelEl, layout);
     col.appendChild(wrapper);
     const gridEl = panelEl.querySelector(".dv2-grid");
     render(panelEl, gridEl, layout, viewOptsFor(layout));
@@ -336,6 +357,70 @@ function initEditMode(col, layouts, subLayouts, objectType, objectPk) {
     } catch (_) {
       alert("Failed to fetch clone source layout.");
     }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Import modal
+  // ---------------------------------------------------------------------------
+
+  const importModalEl  = document.getElementById("dv2-import-modal");
+  const importFileEl   = document.getElementById("dv2-import-file");
+  const importTextEl   = document.getElementById("dv2-import-text");
+  const importErrorEl  = document.getElementById("dv2-import-error");
+  const importApplyBtn = document.getElementById("dv2-import-apply-btn");
+
+  function _openImportModal() {
+    if (!importModalEl) return;
+    if (importTextEl)  importTextEl.value = "";
+    if (importFileEl)  importFileEl.value = "";
+    if (importErrorEl) { importErrorEl.style.display = "none"; importErrorEl.textContent = ""; }
+    importModalEl.classList.add("dv2-modal-open");
+  }
+
+  function _closeImportModal() {
+    importModalEl?.classList.remove("dv2-modal-open");
+  }
+
+  // When a file is selected, read it into the textarea
+  importFileEl?.addEventListener("change", () => {
+    const file = importFileEl.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (importTextEl) importTextEl.value = e.target.result;
+      if (importErrorEl) { importErrorEl.style.display = "none"; importErrorEl.textContent = ""; }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("dv2-import-btn")?.addEventListener("click", _openImportModal);
+  document.getElementById("dv2-import-close-btn")?.addEventListener("click", _closeImportModal);
+  document.getElementById("dv2-import-cancel-btn")?.addEventListener("click", _closeImportModal);
+
+  importApplyBtn?.addEventListener("click", () => {
+    const raw = importTextEl?.value?.trim();
+    if (!raw) {
+      if (importErrorEl) { importErrorEl.textContent = "No JSON provided."; importErrorEl.style.display = ""; }
+      return;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      if (importErrorEl) { importErrorEl.textContent = `Invalid JSON: ${err.message}`; importErrorEl.style.display = ""; }
+      return;
+    }
+    // Normalise: accept {"layouts":[...]} or a single layout object
+    const imported = normalizeLayouts(parsed);
+    if (!imported.layouts.length) {
+      if (importErrorEl) { importErrorEl.textContent = "No layouts found in the imported JSON."; importErrorEl.style.display = ""; }
+      return;
+    }
+    for (const layout of imported.layouts) {
+      addEditorPanel(layout);
+    }
+    col.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
+    _closeImportModal();
   });
 }
 

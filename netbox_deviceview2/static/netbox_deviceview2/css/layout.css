@@ -654,7 +654,8 @@
 
 /* ---- Edit-zone modal ---------------------------------------------------- */
 #dv2-zone-modal,
-#dv2-clone-modal {
+#dv2-clone-modal,
+#dv2-import-modal {
   display: none;
   position: fixed;
   inset: 0;
@@ -664,22 +665,25 @@
   justify-content: center;
 }
 #dv2-zone-modal.dv2-modal-open,
-#dv2-clone-modal.dv2-modal-open { display: flex; }
+#dv2-clone-modal.dv2-modal-open,
+#dv2-import-modal.dv2-modal-open { display: flex; }
 
 #dv2-zone-modal .dv2-modal-dialog,
-#dv2-clone-modal .dv2-modal-dialog {
+#dv2-clone-modal .dv2-modal-dialog,
+#dv2-import-modal .dv2-modal-dialog {
   background: var(--dv2-modal-bg);
   border: 1px solid var(--dv2-modal-border);
   border-radius: 6px;
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   color: var(--dv2-modal-color);
 }
 #dv2-zone-modal .dv2-modal-header,
-#dv2-clone-modal .dv2-modal-header {
+#dv2-clone-modal .dv2-modal-header,
+#dv2-import-modal .dv2-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -688,12 +692,14 @@
   font-weight: 600;
 }
 #dv2-zone-modal .dv2-modal-body,
-#dv2-clone-modal .dv2-modal-body {
+#dv2-clone-modal .dv2-modal-body,
+#dv2-import-modal .dv2-modal-body {
   padding: 1rem;
   overflow-y: auto;
 }
 #dv2-zone-modal .dv2-modal-footer,
-#dv2-clone-modal .dv2-modal-footer {
+#dv2-clone-modal .dv2-modal-footer,
+#dv2-import-modal .dv2-modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -701,7 +707,8 @@
   border-top: 1px solid var(--dv2-modal-divider);
 }
 #dv2-zone-modal .dv2-modal-close,
-#dv2-clone-modal .dv2-modal-close {
+#dv2-clone-modal .dv2-modal-close,
+#dv2-import-modal .dv2-modal-close {
   background: none;
   border: none;
   color: var(--dv2-modal-close);
@@ -711,14 +718,17 @@
   padding: 0;
 }
 #dv2-zone-modal .dv2-modal-close:hover,
-#dv2-clone-modal .dv2-modal-close:hover { opacity: 0.7; }
+#dv2-clone-modal .dv2-modal-close:hover,
+#dv2-import-modal .dv2-modal-close:hover { opacity: 0.7; }
 #dv2-zone-modal .form-label,
-#dv2-clone-modal .form-label {
+#dv2-clone-modal .form-label,
+#dv2-import-modal .form-label {
   color: var(--dv2-modal-label);
   font-size: 0.82rem;
 }
 #dv2-zone-modal .form-control,
-#dv2-zone-modal .dv2-select {
+#dv2-zone-modal .dv2-select,
+#dv2-import-modal .form-control {
   background: var(--dv2-modal-input-bg);
   border: 1px solid var(--dv2-modal-input-border);
   color: var(--dv2-modal-input-color);
@@ -729,9 +739,15 @@
   outline: none;
 }
 #dv2-zone-modal .form-control:focus,
-#dv2-zone-modal .dv2-select:focus {
+#dv2-zone-modal .dv2-select:focus,
+#dv2-import-modal .form-control:focus {
   border-color: #4a9eff;
   box-shadow: 0 0 0 0.2rem rgba(74, 158, 255, 0.2);
+}
+.dv2-import-textarea {
+  font-family: monospace;
+  font-size: 0.78rem;
+  resize: vertical;
 }
 .dv2-form-hint {
   font-size: 0.75rem;
