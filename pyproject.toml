@@ -18,3 +18,9 @@ netbox_devicelayout = "netbox_devicelayout:config"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["netbox_devicelayout*"]
+
+[tool.setuptools.package-data]
+netbox_devicelayout = [
+    "templates/**/*",
+    "static/**/*",
+]
