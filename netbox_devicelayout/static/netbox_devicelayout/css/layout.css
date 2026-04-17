@@ -754,6 +754,21 @@
   color: var(--dv2-modal-hint);
   margin-top: 4px;
 }
+.dv2-modal-ports-header {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  color: var(--dv2-modal-hint);
+}
+.dv2-modal-ports-header span:first-child {
+  flex: 0 0 auto;
+  min-width: 80px;
+  max-width: 140px;
+}
+.dv2-modal-ports-header span:last-child {
+  flex: 1;
+}
 .dv2-port-link {
   display: contents; /* transparent to layout — port box renders as if unwrapped */
   text-decoration: none;
@@ -800,8 +815,25 @@
   gap: 6px;
   margin-bottom: 4px;
 }
-.dv2-modal-port-row span {
+.dv2-port-row-name {
+  flex: 0 0 auto;
+  min-width: 80px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
   color: var(--dv2-modal-port-color);
+}
+.dv2-port-row-label-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  background: var(--dv2-modal-input-bg, rgba(255,255,255,0.08));
+  border: 1px solid var(--dv2-modal-input-border, rgba(255,255,255,0.2));
+  border-radius: 4px;
+  color: inherit;
 }
 .dv2-modal-port-remove {
   background: rgba(220, 53, 69, 0.7);

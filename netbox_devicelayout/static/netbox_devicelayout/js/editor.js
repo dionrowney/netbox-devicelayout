@@ -723,18 +723,23 @@ export class LayoutEditor {
     row.dataset.portId = id;
 
     const nameEl = document.createElement("span");
-    nameEl.style.cssText = "flex:1;font-size:0.85rem;color:#c0d4e8";
-    nameEl.textContent = label;
+    nameEl.className = "dv2-port-row-name";
+    nameEl.textContent = name || label;
+    nameEl.title = name || label;
     row.appendChild(nameEl);
+
+    const lblInput = document.createElement("input");
+    lblInput.type = "text";
+    lblInput.className = "port-lbl-val dv2-port-row-label-input";
+    lblInput.value = label;
+    lblInput.placeholder = name || label;
+    row.appendChild(lblInput);
 
     const hidId  = document.createElement("input");
     hidId.type = "hidden"; hidId.className = "port-id-val"; hidId.value = id;
-    const hidLbl = document.createElement("input");
-    hidLbl.type = "hidden"; hidLbl.className = "port-lbl-val"; hidLbl.value = label;
     const hidName = document.createElement("input");
     hidName.type = "hidden"; hidName.className = "port-name-val"; hidName.value = name || label;
     row.appendChild(hidId);
-    row.appendChild(hidLbl);
     row.appendChild(hidName);
 
     const rm = document.createElement("button");
