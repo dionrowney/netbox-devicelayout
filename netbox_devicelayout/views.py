@@ -159,7 +159,7 @@ def _build_device_layout_data(device):
     # Port info: cable + peers for every port on the device
     def _fmt_endpoint(ep):
         if hasattr(ep, "device") and hasattr(ep, "name"):
-            return f"{ep.device} / {ep.name}"
+            return f"{ep.device} > {ep.name}"
         if hasattr(ep, "circuit"):
             return f"Circuit {ep.circuit.cid}"
         return str(ep)
