@@ -208,14 +208,24 @@ def _build_device_layout_data(device):
         for port in zone.get("ports", []):
             port_name = port.get("name")
             if port_name:
-                info = port_info.get(port_name, _empty)
-                connections[f"{zone['id']}:{port['id']}"] = {
-                    "connected": info["connected"],
-                    "name": port_name,
-                    "cable": info["cable"],
-                    "peers": info["peers"],
-                    "remote": info["remote"],
-                }
+                info = port_info.get(port_name)
+                if info is None:
+                    connections[f"{zone['id']}:{port['id']}"] = {
+                        "stale": True,
+                        "name": port_name,
+                        "connected": False,
+                        "cable": "",
+                        "peers": [],
+                        "remote": [],
+                    }
+                else:
+                    connections[f"{zone['id']}:{port['id']}"] = {
+                        "connected": info["connected"],
+                        "name": port_name,
+                        "cable": info["cable"],
+                        "peers": info["peers"],
+                        "remote": info["remote"],
+                    }
 
     # Sub-layout zone ports: template ID → {module} substitution
     all_template_ids = set()
@@ -253,18 +263,28 @@ def _build_device_layout_data(device):
                     if not template_name:
                         continue
                     actual_name = template_name.replace("{module}", bay_position)
-                    info = port_info.get(actual_name, _empty)
+                    info = port_info.get(actual_name)
                     actual_port_id = port_id_by_name.get(actual_name)
                     actual_port_type = port_type_by_name.get(actual_name)
                     # Prefix with parent bay zone id to avoid key collisions when
                     # multiple bays use the same module type (identical zone/port IDs).
-                    entry = {
-                        "connected": info["connected"],
-                        "name": actual_name,
-                        "cable": info["cable"],
-                        "peers": info["peers"],
-                        "remote": info["remote"],
-                    }
+                    if info is None:
+                        entry = {
+                            "stale": True,
+                            "name": actual_name,
+                            "connected": False,
+                            "cable": "",
+                            "peers": [],
+                            "remote": [],
+                        }
+                    else:
+                        entry = {
+                            "connected": info["connected"],
+                            "name": actual_name,
+                            "cable": info["cable"],
+                            "peers": info["peers"],
+                            "remote": info["remote"],
+                        }
                     if actual_port_id:
                         entry["port_id"] = actual_port_id
                         entry["netbox_type"] = actual_port_type

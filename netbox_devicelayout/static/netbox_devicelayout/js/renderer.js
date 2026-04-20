@@ -81,9 +81,12 @@ function _showTooltip(e, port, portData) {
   const peers = portData?.peers || [];
   const remote = portData?.remote || [];
   const connected = portData?.connected ?? false;
+  const stale = portData?.stale ?? false;
 
   let html = `<div class="dv2-tt-row"><span class="dv2-tt-key">Port</span><span class="dv2-tt-val">${_esc(name)}</span></div>`;
-  if (connected) {
+  if (stale) {
+    html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Status</span><span class="dv2-tt-val dv2-tt-stale">&#9888; Name not found &mdash; may have been renamed</span></div>`;
+  } else if (connected) {
     if (cable) {
       html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Cable</span><span class="dv2-tt-val">${_esc(cable)}</span></div>`;
     }
@@ -136,13 +139,14 @@ export function createPortEl(port, portData, editable, url = null) {
   el.textContent = port.label;
 
   const connected = typeof portData === "object" ? portData?.connected : !!portData;
+  const stale = typeof portData === "object" ? (portData?.stale ?? false) : false;
 
   // Store resolved name as data attribute so highlight can find this element by name
   const resolvedName = (typeof portData === "object" ? portData?.name : null) || port.name || "";
   if (resolvedName) el.dataset.portName = resolvedName;
 
   if (!editable) {
-    el.classList.add(connected ? "dv2-connected" : "dv2-unconnected");
+    el.classList.add(stale ? "dv2-stale" : connected ? "dv2-connected" : "dv2-unconnected");
 
     el.addEventListener("mouseenter", (e) => _showTooltip(e, port, typeof portData === "object" ? portData : null));
     el.addEventListener("mousemove", _positionTooltip);
