@@ -12,4 +12,22 @@ This plugin provides a WYSIWYG interface for editing the design of the grid layo
 
 The information defining the layout is stored in json in the database.
 
-On the device page when displaying the layout rendering including the installed modules and nested modules, the interface and port details will be reflected in the rendering.  Green being connected and a light grey being not connected.
+On the device page when displaying the layout rendering including the installed modules and nested modules, the interface and port details will be reflected in the rendering.  Green being connected and a light grey being not connected and amber indicating a naming issue.
+
+## Installation
+
+To do once made into a pipi module
+
+## Example Screenshots
+Layout view
+
+<img width="1708" height="488" alt="Screenshot 2026-04-20 135810" src="https://github.com/user-attachments/assets/0e8c58f0-2b9d-4ef4-a9bd-4df4aa2ad965" />
+
+Editor
+
+<img width="1706" height="482" alt="Screenshot 2026-04-20 135846" src="https://github.com/user-attachments/assets/10100320-8c48-430b-b6e1-a157f7393354" />
+
+<img width="1699" height="554" alt="Screenshot 2026-04-20 140006" src="https://github.com/user-attachments/assets/1c9451e6-4ba1-4c33-b6ae-ceac05135e94" />
+
+
+
