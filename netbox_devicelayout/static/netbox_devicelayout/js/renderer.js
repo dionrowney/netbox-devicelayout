@@ -67,6 +67,17 @@ let _tooltipEl = null;
 // Touch state: which port element currently has a touch-triggered tooltip visible
 let _touchActiveEl = null;
 let _touchDismissInstalled = false;
+// Click guard: e.preventDefault() on touchstart doesn't reliably suppress the
+// synthesized click in all mobile browsers, so we track it explicitly.
+let _touchClickGuard = false;
+let _touchClickGuardTimer = null;
+
+function _armTouchClickGuard() {
+  _touchClickGuard = true;
+  clearTimeout(_touchClickGuardTimer);
+  // 600 ms covers iOS Safari's ~300 ms click delay plus margin
+  _touchClickGuardTimer = setTimeout(() => { _touchClickGuard = false; }, 600);
+}
 
 function _getTooltip() {
   if (!_tooltipEl) {
@@ -100,12 +111,11 @@ function _buildTooltipHtml(port, portData) {
 }
 
 function _showTooltip(e, port, portData) {
-  const tt = _getTooltip();
-  // If a touch tooltip was active, clear its state (hybrid device scenario)
-  tt.style.pointerEvents = "";
-  tt.classList.remove("dv2-port-tooltip--touch");
-  _touchActiveEl = null;
+  // iOS fires a synthesized mouseenter after touchstart even when preventDefault()
+  // was called — don't let it overwrite the touch tooltip (which has the nav link).
+  if (_touchActiveEl) return;
 
+  const tt = _getTooltip();
   tt.innerHTML = _buildTooltipHtml(port, portData);
   tt.style.display = "block";
   _positionTooltip(e);
@@ -209,12 +219,19 @@ export function createPortEl(port, portData, editable, url = null) {
 
     if (url) {
       el.style.cursor = "pointer";
-      el.addEventListener("click", () => { window.location.href = url; });
+      el.addEventListener("click", () => {
+        // Discard the synthesized click that fires after a touchstart — the
+        // touchstart handler has already decided what to do.
+        if (_touchClickGuard) { _touchClickGuard = false; return; }
+        window.location.href = url;
+      });
     }
 
-    // Touch: first tap shows tooltip (suppresses the synthesized click);
-    // second tap on the same port navigates. Tap elsewhere dismisses.
+    // Touch: first tap shows tooltip; second tap on same port navigates.
+    // Tap elsewhere dismisses. _armTouchClickGuard() blocks the synthesized
+    // click that browsers fire after touchstart even when preventDefault() is called.
     el.addEventListener("touchstart", (e) => {
+      _armTouchClickGuard();
       if (_touchActiveEl === el) {
         // Second tap on same port → navigate (or just dismiss if no URL)
         e.preventDefault();

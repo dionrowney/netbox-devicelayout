@@ -199,6 +199,22 @@ def _build_device_layout_data(device):
         port_info[rp.name] = _port_info(rp)
         port_id_by_name[rp.name] = rp.pk
         port_type_by_name[rp.name] = "rear-port"
+    for cp in device.consoleports.select_related("cable").all():
+        port_info[cp.name] = _port_info(cp)
+        port_id_by_name[cp.name] = cp.pk
+        port_type_by_name[cp.name] = "console-port"
+    for csp in device.consoleserverports.select_related("cable").all():
+        port_info[csp.name] = _port_info(csp)
+        port_id_by_name[csp.name] = csp.pk
+        port_type_by_name[csp.name] = "console-server-port"
+    for pp in device.powerports.select_related("cable").all():
+        port_info[pp.name] = _port_info(pp)
+        port_id_by_name[pp.name] = pp.pk
+        port_type_by_name[pp.name] = "power-port"
+    for po in device.poweroutlets.select_related("cable").all():
+        port_info[po.name] = _port_info(po)
+        port_id_by_name[po.name] = po.pk
+        port_type_by_name[po.name] = "power-outlet"
 
     _empty = {"connected": False, "cable": "", "peers": [], "remote": []}
     connections = {}
@@ -219,13 +235,18 @@ def _build_device_layout_data(device):
                         "remote": [],
                     }
                 else:
-                    connections[f"{zone['id']}:{port['id']}"] = {
+                    entry = {
                         "connected": info["connected"],
                         "name": port_name,
                         "cable": info["cable"],
                         "peers": info["peers"],
                         "remote": info["remote"],
                     }
+                    pid = port_id_by_name.get(port_name)
+                    if pid:
+                        entry["port_id"] = pid
+                        entry["netbox_type"] = port_type_by_name[port_name]
+                    connections[f"{zone['id']}:{port['id']}"] = entry
 
     # Sub-layout zone ports: template ID → {module} substitution
     all_template_ids = set()
