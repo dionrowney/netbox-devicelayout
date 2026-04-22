@@ -586,6 +586,30 @@
   color: var(--dv2-sidebar-muted);
 }
 
+/* Touch tooltip: nav link row + dismiss hint */
+.dv2-tt-nav {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--dv2-modal-border);
+  text-align: right;
+}
+.dv2-tt-nav-link {
+  color: #4a6a9a;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+}
+.dv2-tt-nav-link:active {
+  text-decoration: underline;
+}
+.dv2-tt-nav-hint {
+  color: var(--dv2-sidebar-muted);
+  font-size: 0.78rem;
+  text-align: center;
+  font-style: italic;
+}
+
 /* ---- Edit mode zone controls ------------------------------------------- */
 .dv2-edit-mode .dv2-zone { cursor: grab; }
 .dv2-edit-mode .dv2-zone:hover { outline: 2px solid rgba(74, 120, 200, 0.5); }

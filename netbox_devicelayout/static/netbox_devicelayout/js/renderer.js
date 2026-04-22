@@ -64,6 +64,10 @@ const PORT_URL_PATHS = {
 };
 
 let _tooltipEl = null;
+// Touch state: which port element currently has a touch-triggered tooltip visible
+let _touchActiveEl = null;
+let _touchDismissInstalled = false;
+
 function _getTooltip() {
   if (!_tooltipEl) {
     _tooltipEl = document.createElement("div");
@@ -74,8 +78,7 @@ function _getTooltip() {
   return _tooltipEl;
 }
 
-function _showTooltip(e, port, portData) {
-  const tt = _getTooltip();
+function _buildTooltipHtml(port, portData) {
   const name = portData?.name || port.name || port.label || port.id;
   const cable = portData?.cable || "";
   const peers = portData?.peers || [];
@@ -87,22 +90,74 @@ function _showTooltip(e, port, portData) {
   if (stale) {
     html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Status</span><span class="dv2-tt-val dv2-tt-stale">&#9888; Name not found &mdash; may have been renamed</span></div>`;
   } else if (connected) {
-    if (cable) {
-      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Cable</span><span class="dv2-tt-val">${_esc(cable)}</span></div>`;
-    }
-    if (peers.length) {
-      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Link Peer</span><span class="dv2-tt-val">${peers.map(_esc).join("<br>")}</span></div>`;
-    }
-    if (remote.length) {
-      html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Connection</span><span class="dv2-tt-val">${remote.map(_esc).join("<br>")}</span></div>`;
-    }
+    if (cable) html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Cable</span><span class="dv2-tt-val">${_esc(cable)}</span></div>`;
+    if (peers.length) html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Link Peer</span><span class="dv2-tt-val">${peers.map(_esc).join("<br>")}</span></div>`;
+    if (remote.length) html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Connection</span><span class="dv2-tt-val">${remote.map(_esc).join("<br>")}</span></div>`;
   } else {
     html += `<div class="dv2-tt-row"><span class="dv2-tt-key">Status</span><span class="dv2-tt-val dv2-tt-unconnected">Not connected</span></div>`;
   }
+  return html;
+}
 
-  tt.innerHTML = html;
+function _showTooltip(e, port, portData) {
+  const tt = _getTooltip();
+  // If a touch tooltip was active, clear its state (hybrid device scenario)
+  tt.style.pointerEvents = "";
+  tt.classList.remove("dv2-port-tooltip--touch");
+  _touchActiveEl = null;
+
+  tt.innerHTML = _buildTooltipHtml(port, portData);
   tt.style.display = "block";
   _positionTooltip(e);
+}
+
+function _showTouchTooltip(e, port, portData, url) {
+  const tt = _getTooltip();
+  let html = _buildTooltipHtml(port, portData);
+  if (url) {
+    html += `<div class="dv2-tt-nav"><a href="${_esc(url)}" class="dv2-tt-nav-link">Open port &#8594;</a></div>`;
+  } else {
+    html += `<div class="dv2-tt-nav dv2-tt-nav-hint">Tap again to dismiss</div>`;
+  }
+  tt.innerHTML = html;
+  tt.classList.add("dv2-port-tooltip--touch");
+  tt.style.pointerEvents = "auto";
+  tt.style.display = "block";
+
+  // Position near the touch point, flipping if near viewport edge
+  const touch = e.changedTouches?.[0] || e.touches?.[0];
+  const cx = touch?.clientX ?? 0;
+  const cy = touch?.clientY ?? 0;
+  requestAnimationFrame(() => {
+    const rect = tt.getBoundingClientRect();
+    const x = cx + 12;
+    const y = cy + 12;
+    const left = x + rect.width > window.innerWidth ? cx - rect.width - 8 : x;
+    const top  = y + rect.height > window.innerHeight ? cy - rect.height - 8 : y;
+    tt.style.left = `${left}px`;
+    tt.style.top  = `${top}px`;
+  });
+}
+
+function _hideTouchTooltip() {
+  if (_tooltipEl) {
+    _tooltipEl.style.pointerEvents = "";
+    _tooltipEl.classList.remove("dv2-port-tooltip--touch");
+  }
+  _hideTooltip();
+  _touchActiveEl = null;
+}
+
+// Install a single document-level touchstart listener to dismiss on outside tap
+function _ensureTouchDismiss() {
+  if (_touchDismissInstalled) return;
+  _touchDismissInstalled = true;
+  document.addEventListener("touchstart", (e) => {
+    if (!_touchActiveEl) return;
+    const tt = _getTooltip();
+    if (tt.contains(e.target) || _touchActiveEl.contains(e.target) || e.target === _touchActiveEl) return;
+    _hideTouchTooltip();
+  }, { passive: true });
 }
 
 function _positionTooltip(e) {
@@ -156,6 +211,23 @@ export function createPortEl(port, portData, editable, url = null) {
       el.style.cursor = "pointer";
       el.addEventListener("click", () => { window.location.href = url; });
     }
+
+    // Touch: first tap shows tooltip (suppresses the synthesized click);
+    // second tap on the same port navigates. Tap elsewhere dismisses.
+    el.addEventListener("touchstart", (e) => {
+      if (_touchActiveEl === el) {
+        // Second tap on same port → navigate (or just dismiss if no URL)
+        e.preventDefault();
+        _hideTouchTooltip();
+        if (url) window.location.href = url;
+        return;
+      }
+      e.preventDefault();
+      _hideTouchTooltip();
+      _touchActiveEl = el;
+      _showTouchTooltip(e, port, typeof portData === "object" ? portData : null, url);
+      _ensureTouchDismiss();
+    }, { passive: false });
   }
   return el;
 }
