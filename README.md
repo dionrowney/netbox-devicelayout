@@ -16,7 +16,20 @@ On the device page when displaying the layout rendering including the installed 
 
 ## Installation
 
-To do once made into a pipi module
+Currently I have not made a pypi module and its just in dev mode.  I installed it using the following and might be specific to my environment:
+
+```
+gh repo clone dionrowney/netbox-devicelayout
+cd /opt/netbox/netbox/
+source /opt/netbox/netbox/venv/bin/activate
+pip install -e /opt/netbox/netbox-devicelayout --no-deps
+python manage.py migrate
+source /opt/netbox/netbox/venv/bin/activate
+python3 manage.py collectstatic
+chmod -R 775 /opt/netbox/netbox-devicelayout/
+chown -R root:root /opt/netbox/netbox-devicelayout/
+
+```
 
 ## Example Screenshots
 Layout view
